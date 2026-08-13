@@ -1,0 +1,232 @@
+"use client";
+
+import { useAppStore } from "@/lib/store";
+import { tr } from "@/lib/translations";
+import type { NavPage } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import {
+  Plane,
+  LayoutDashboard,
+  Briefcase,
+  Users,
+  Wallet,
+  BarChart3,
+  Settings,
+  ChevronLeft,
+  Hotel,
+  FileText,
+  Bus,
+  Car,
+  Ticket,
+  Ship,
+  ShieldCheck,
+  Stethoscope,
+  HeartPulse,
+  Building2,
+  IdCard,
+  ScrollText,
+  Receipt,
+  Coins,
+  ArrowRightLeft,
+  UserCog,
+  Cog,
+} from "lucide-react";
+
+interface NavItem {
+  page: NavPage;
+  labelKey: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+interface NavGroup {
+  key: string;
+  labelKey: string;
+  icon: React.ComponentType<{ className?: string }>;
+  /** if true: this is a single-page group (no expansion). */
+  flat?: boolean;
+  pages: NavItem[];
+}
+
+const groups: NavGroup[] = [
+  {
+    key: "dashboard",
+    labelKey: "nav_dashboard",
+    icon: LayoutDashboard,
+    flat: true,
+    pages: [{ page: "dashboard", labelKey: "nav_dashboard", icon: LayoutDashboard }],
+  },
+  {
+    key: "services",
+    labelKey: "nav_services",
+    icon: Briefcase,
+    pages: [
+      { page: "hajj_program", labelKey: "nav_hajj_program", icon: Plane },
+      { page: "hajj_regular", labelKey: "nav_hajj_regular", icon: Plane },
+      { page: "umrah_program", labelKey: "nav_umrah_program", icon: Plane },
+      { page: "umrah_regular", labelKey: "nav_umrah_regular", icon: Plane },
+      { page: "passport_attendance", labelKey: "nav_passport_attendance", icon: IdCard },
+      { page: "passport_without", labelKey: "nav_passport_without", icon: IdCard },
+      { page: "flight_ticket", labelKey: "nav_flight_ticket", icon: Ticket },
+      { page: "intl_bus", labelKey: "nav_intl_bus", icon: Bus },
+      { page: "intl_car", labelKey: "nav_intl_car", icon: Car },
+      { page: "local_bus", labelKey: "nav_local_bus", icon: Bus },
+      { page: "local_car", labelKey: "nav_local_car", icon: Car },
+      { page: "visa_medical", labelKey: "nav_visa_medical", icon: HeartPulse },
+      { page: "visa_tourist", labelKey: "nav_visa_tourist", icon: Plane },
+      { page: "visa_work", labelKey: "nav_visa_work", icon: Briefcase },
+      { page: "visa_visit", labelKey: "nav_visa_visit", icon: FileText },
+      { page: "shipping", labelKey: "nav_shipping", icon: Ship },
+      { page: "customs", labelKey: "nav_customs", icon: ScrollText },
+      { page: "security_approval", labelKey: "nav_security_approval", icon: ShieldCheck },
+      { page: "medical_report", labelKey: "nav_medical_report", icon: Stethoscope },
+      { page: "travel_insurance", labelKey: "nav_travel_insurance", icon: ShieldCheck },
+      { page: "hotel_booking", labelKey: "nav_hotel_booking", icon: Hotel },
+    ],
+  },
+  {
+    key: "management",
+    labelKey: "nav_management",
+    icon: Users,
+    pages: [
+      { page: "customers", labelKey: "nav_customers", icon: Users },
+      { page: "employees", labelKey: "nav_employees", icon: UserCog },
+      { page: "agents_companies", labelKey: "nav_agents_companies", icon: Building2 },
+    ],
+  },
+  {
+    key: "finance",
+    labelKey: "nav_finance",
+    icon: Wallet,
+    pages: [
+      { page: "revenues_expenses", labelKey: "nav_revenues_expenses", icon: Coins },
+      { page: "payments", labelKey: "nav_payments", icon: ArrowRightLeft },
+      { page: "invoices", labelKey: "nav_invoices", icon: Receipt },
+    ],
+  },
+  {
+    key: "monitoring",
+    labelKey: "nav_monitoring",
+    icon: BarChart3,
+    pages: [
+      { page: "statistics", labelKey: "nav_statistics", icon: BarChart3 },
+      { page: "audit_log", labelKey: "nav_audit_log", icon: ScrollText },
+      { page: "visa_expiry", labelKey: "nav_visa_expiry", icon: ShieldCheck },
+    ],
+  },
+  {
+    key: "settings",
+    labelKey: "nav_settings",
+    icon: Settings,
+    pages: [
+      { page: "users_permissions", labelKey: "nav_users_permissions", icon: UserCog },
+      { page: "system_settings", labelKey: "nav_system_settings", icon: Cog },
+    ],
+  },
+];
+
+export function Sidebar() {
+  const lang = useAppStore((s) => s.lang);
+  const currentPage = useAppStore((s) => s.currentPage);
+  const expanded = useAppStore((s) => s.expandedSections);
+  const setPage = useAppStore((s) => s.setPage);
+  const toggleSection = useAppStore((s) => s.toggleSection);
+
+  return (
+    <aside
+      dir={lang === "ar" ? "rtl" : "ltr"}
+      className="hidden lg:flex flex-col w-64 bg-sidebar border-s border-sidebar-border h-screen sticky top-0 z-30"
+    >
+      {/* Brand */}
+      <div className="px-5 py-5 border-b border-sidebar-border">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#A855F7] flex items-center justify-center shadow-sm">
+            <Plane className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h2 className="font-bold text-foreground text-base leading-tight">
+              {tr(lang, "brand_name")}
+            </h2>
+            <p className="text-xs text-muted-foreground">{tr(lang, "brand_sub")}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+        {groups.map((g) => {
+          const isExpanded = g.flat || expanded[g.key] || g.pages.some((p) => p.page === currentPage);
+          const isGroupActive = g.pages.some((p) => p.page === currentPage);
+
+          if (g.flat) {
+            const item = g.pages[0];
+            const isActive = currentPage === item.page;
+            return (
+              <button
+                key={g.key}
+                onClick={() => setPage(item.page)}
+                className={cn(
+                  "nav-item relative w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
+                  isActive ? "active" : "text-foreground/80 hover:bg-sidebar-accent"
+                )}
+              >
+                <item.icon className="nav-icon w-5 h-5" />
+                <span>{tr(lang, item.labelKey)}</span>
+              </button>
+            );
+          }
+
+          return (
+            <div key={g.key}>
+              <button
+                onClick={() => toggleSection(g.key)}
+                className={cn(
+                  "nav-item relative w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium",
+                  isGroupActive && !isExpanded ? "active" : "text-foreground/80 hover:bg-sidebar-accent"
+                )}
+              >
+                <span className="flex items-center gap-3">
+                  <g.icon className="nav-icon w-5 h-5" />
+                  {tr(lang, g.labelKey)}
+                </span>
+                <ChevronLeft
+                  className={cn(
+                    "w-4 h-4 transition-transform",
+                    isExpanded && "-rotate-90"
+                  )}
+                />
+              </button>
+
+              {isExpanded && (
+                <div className="mt-1 ms-3 space-y-0.5 border-s border-sidebar-border ps-3 pt-1">
+                  {g.pages.map((item) => {
+                    const isActive = currentPage === item.page;
+                    return (
+                      <button
+                        key={item.page}
+                        onClick={() => setPage(item.page)}
+                        className={cn(
+                          "nav-item relative w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] transition-all",
+                          isActive ? "active" : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+                        )}
+                      >
+                        <item.icon className="nav-icon w-4 h-4 flex-shrink-0" />
+                        <span className="truncate">{tr(lang, item.labelKey)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </nav>
+
+      {/* Footer */}
+      <div className="px-4 py-3 border-t border-sidebar-border">
+        <div className="text-[11px] text-muted-foreground text-center">
+          {lang === "ar" ? "© سما اليمن 2026" : "© Sama Yemen 2026"}
+        </div>
+      </div>
+    </aside>
+  );
+}

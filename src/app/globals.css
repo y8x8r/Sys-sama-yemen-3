@@ -1,0 +1,258 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-cairo);
+  --font-cairo: var(--font-cairo);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.75rem;
+  /* Brand palette — Royal purple inspired by reference image */
+  --background: #F8F9FC;
+  --foreground: #1F2937;
+  --card: #FFFFFF;
+  --card-foreground: #1F2937;
+  --popover: #FFFFFF;
+  --popover-foreground: #1F2937;
+  --primary: #7C3AED;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F3E8FF;
+  --secondary-foreground: #6D28D9;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+  --accent: #F3E8FF;
+  --accent-foreground: #6D28D9;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #EEF0F5;
+  --input: #EEF0F5;
+  --ring: #7C3AED;
+  /* Status colors */
+  --status-pending: #F97316;
+  --status-pending-bg: #FFF7ED;
+  --status-processing: #3B82F6;
+  --status-processing-bg: #EFF6FF;
+  --status-cancelled: #EF4444;
+  --status-cancelled-bg: #FEF2F2;
+  --status-shipped: #7C3AED;
+  --status-shipped-bg: #F3E8FF;
+  --status-out: #EC4899;
+  --status-out-bg: #FDF2F8;
+  --status-delivered: #10B981;
+  --status-delivered-bg: #ECFDF5;
+  /* Charts */
+  --chart-1: #7C3AED;
+  --chart-2: #F97316;
+  --chart-3: #10B981;
+  --chart-4: #EC4899;
+  --chart-5: #3B82F6;
+  /* Sidebar — white & clean */
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #1F2937;
+  --sidebar-primary: #7C3AED;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F3E8FF;
+  --sidebar-accent-foreground: #6D28D9;
+  --sidebar-border: #EEF0F5;
+  --sidebar-ring: #7C3AED;
+  /* Pastel stat card colors */
+  --pastel-lilac: #F3E8FF;
+  --pastel-lilac-icon: #8B5CF6;
+  --pastel-sky: #E0F2FE;
+  --pastel-sky-icon: #0EA5E9;
+  --pastel-peach: #FFEDD5;
+  --pastel-peach-icon: #F97316;
+  --pastel-mint: #D1FAE5;
+  --pastel-mint-icon: #10B981;
+  --pastel-yellow: #FEF9C3;
+  --pastel-yellow-icon: #EAB308;
+}
+
+.dark {
+  --background: #0F172A;
+  --foreground: #F1F5F9;
+  --card: #1E293B;
+  --card-foreground: #F1F5F9;
+  --popover: #1E293B;
+  --popover-foreground: #F1F5F9;
+  --primary: #A855F7;
+  --primary-foreground: #FFFFFF;
+  --secondary: #2D1B4E;
+  --secondary-foreground: #C4B5FD;
+  --muted: #1E293B;
+  --muted-foreground: #94A3B8;
+  --accent: #2D1B4E;
+  --accent-foreground: #C4B5FD;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --border: #334155;
+  --input: #334155;
+  --ring: #A855F7;
+  --chart-1: #A855F7;
+  --chart-2: #FB923C;
+  --chart-3: #34D399;
+  --chart-4: #F472B6;
+  --chart-5: #60A5FA;
+  --sidebar: #1E293B;
+  --sidebar-foreground: #F1F5F9;
+  --sidebar-primary: #A855F7;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #2D1B4E;
+  --sidebar-accent-foreground: #C4B5FD;
+  --sidebar-border: #334155;
+  --sidebar-ring: #A855F7;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html, body {
+    font-family: var(--font-cairo), system-ui, sans-serif;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "cv01", "cv02";
+  }
+  /* Numbers stay in English digits regardless of language */
+  .num {
+    font-variant-numeric: tabular-nums;
+    direction: ltr;
+    unicode-bidi: embed;
+  }
+}
+
+/* Sidebar nav item — hover state */
+.nav-item {
+  transition: all 160ms ease;
+}
+.nav-item:hover {
+  background-color: #F3E8FF;
+  color: #6D28D9;
+}
+.nav-item:hover .nav-icon {
+  color: #6D28D9;
+}
+.nav-item.active {
+  background: linear-gradient(135deg, #7C3AED 0%, #A855F7 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.25);
+}
+.nav-item.active .nav-icon {
+  color: #FFFFFF;
+}
+
+.dark .nav-item:hover {
+  background-color: #2D1B4E;
+  color: #C4B5FD;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #E2E8F0;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #CBD5E1;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Gradient brand text */
+.brand-gradient {
+  background: linear-gradient(135deg, #7C3AED 0%, #A855F7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Card shadow — soft */
+.card-shadow {
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+}
+
+/* Sidebar active indicator (right side accent for RTL) */
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: linear-gradient(180deg, #7C3AED, #A855F7);
+  border-radius: 0 4px 4px 0;
+}
+
+[dir="ltr"] .nav-item.active::before {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+  border-radius: 4px 0 0 4px;
+}
+
+/* Loading skeleton */
+.skeleton-pulse {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Fade-in animation for content */
+.fade-in {
+  animation: fade-in 240ms ease-out;
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

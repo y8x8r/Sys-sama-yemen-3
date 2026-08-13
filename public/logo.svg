@@ -1,0 +1,13 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="samaGrad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7C3AED"/>
+      <stop offset="1" stop-color="#A855F7"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#samaGrad)"/>
+  <!-- airplane / sama mark -->
+  <path d="M32 12 L36.5 28 L52 30 L36.5 32 L34 48 L32 36 L30 48 L27.5 32 L12 30 L27.5 28 Z" fill="#FFFFFF" fill-opacity="0.95"/>
+  <!-- horizon arc -->
+  <path d="M14 44 Q32 38 50 44" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.7"/>
+</svg>
