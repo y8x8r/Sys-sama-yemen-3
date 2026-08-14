@@ -8,9 +8,8 @@ import type {
   ServiceStatus,
   Currency,
   PaymentMethod,
-  Customer,
 } from "@/lib/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +30,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -38,6 +47,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -45,11 +60,17 @@ import {
   Printer,
   Search,
   Filter,
-  Pencil,
   Eye,
+  Trash2,
+  Pencil,
   CheckCircle2,
   XCircle,
   Loader2,
+  ChevronDown,
+  FileSpreadsheet,
+  Calendar,
+  AlertCircle,
+  UserPlus,
 } from "lucide-react";
 
 export interface FieldDef {
@@ -59,13 +80,9 @@ export interface FieldDef {
   options?: { value: string; labelKey: string }[];
   required?: boolean;
   placeholder?: string;
-  /** Autocomplete from existing customers */
   fromCustomer?: "fullName" | "customerNumber" | "phoneNumber" | "passportNumber" | "nationalId";
-  /** Computed */
   computed?: boolean;
-  /** Hidden in table */
   hideInTable?: boolean;
-  /** Span 2 cols in form */
   span2?: boolean;
 }
 
@@ -73,19 +90,18 @@ export interface ServiceConfig {
   serviceType: ServiceType;
   labelKey: string;
   fields: FieldDef[];
-  /** Auto-append common finance fields (price, payment, paid, remaining, print) */
   withFinance?: boolean;
 }
 
 const statusColors: Record<ServiceStatus, { bg: string; fg: string; label: string }> = {
-  pending: { bg: "#FFF7ED", fg: "#F97316", label: "list_urgent" },
-  processing: { bg: "#EFF6FF", fg: "#3B82F6", label: "processing" },
-  completed: { bg: "#ECFDF5", fg: "#10B981", label: "completed" },
-  cancelled: { bg: "#FEF2F2", fg: "#EF4444", label: "cancelled" },
-  delivered: { bg: "#F3E8FF", fg: "#7C3AED", label: "delivered" },
+  pending: { bg: "var(--status-pending-bg)", fg: "#F97316", label: "list_urgent" },
+  processing: { bg: "var(--status-processing-bg)", fg: "#3B82F6", label: "processing" },
+  completed: { bg: "var(--status-delivered-bg)", fg: "#10B981", label: "completed" },
+  cancelled: { bg: "var(--status-cancelled-bg)", fg: "#EF4444", label: "cancelled" },
+  delivered: { bg: "var(--status-shipped-bg)", fg: "#7C3AED", label: "delivered" },
 };
 
-const currencySymbol = (c: Currency) => (c === "SAR" ? "ر.س" : c === "YER" ? "ر.ي" : "$");
+const currencySymbol = (c: string) => (c === "SAR" ? "ر.س" : c === "YER" ? "ر.ي" : "$");
 
 interface Props {
   config: ServiceConfig;
@@ -93,17 +109,20 @@ interface Props {
 
 export function ServicePage({ config }: Props) {
   const lang = useAppStore((s) => s.lang);
-  const theme = useAppStore((s) => s.theme);
   const services = useAppStore((s) => s.services);
   const customers = useAppStore((s) => s.customers);
-  const employees = useAppStore((s) => s.employees);
   const currentUser = useAppStore((s) => s.currentUser);
   const addService = useAppStore((s) => s.addService);
+  const updateService = useAppStore((s) => s.updateService);
+  const deleteService = useAppStore((s) => s.deleteService);
+  const setPage = useAppStore((s) => s.setPage);
 
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [viewRecord, setViewRecord] = useState<null | (typeof services)[0]>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [form, setForm] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -129,10 +148,41 @@ export function ServicePage({ config }: Props) {
   const resetForm = () => {
     setForm({});
     setErrors({});
+    setEditingId(null);
   };
 
   const openCreate = () => {
+    if (customers.length === 0) {
+      toast.error(tr(lang, "no_customers_yet"));
+      setPage("customers");
+      return;
+    }
     resetForm();
+    setOpen(true);
+  };
+
+  const openEdit = (record: (typeof services)[0]) => {
+    const newForm: Record<string, string> = {
+      customerId: record.customerId,
+      customerName: record.customerName,
+      customerNumber: customers.find((c) => c.id === record.customerId)?.customerNumber ?? "",
+      phoneNumber: customers.find((c) => c.id === record.customerId)?.phoneNumber ?? "",
+      passportNumber: record.details.passportNumber as string ?? customers.find((c) => c.id === record.customerId)?.passportNumber ?? "",
+      nationalId: customers.find((c) => c.id === record.customerId)?.nationalId ?? "",
+      price: String(record.price),
+      paid: String(record.paid),
+      currency: record.currency,
+      paymentMethod: record.paymentMethod ?? "",
+      transferNo: record.transferNo ?? "",
+      status: record.status,
+      notes: record.notes ?? "",
+    };
+    for (const f of config.fields) {
+      if (["customerId", "customerName", "customerNumber", "phoneNumber", "passportNumber", "nationalId", "price", "paid", "currency", "paymentMethod", "transferNo", "status", "notes"].includes(f.name)) continue;
+      if (record.details[f.name] !== undefined) newForm[f.name] = String(record.details[f.name]);
+    }
+    setForm(newForm);
+    setEditingId(record.id);
     setOpen(true);
   };
 
@@ -144,6 +194,7 @@ export function ServicePage({ config }: Props) {
     next.customerName = c.fullName;
     next.customerNumber = c.customerNumber;
     next.phoneNumber = c.phoneNumber;
+    // اعتماد رقم الجواز تلقائياً من ملف العميل عند توفره
     if (c.passportNumber) next.passportNumber = c.passportNumber;
     if (c.nationalId) next.nationalId = c.nationalId;
     setForm(next);
@@ -151,8 +202,10 @@ export function ServicePage({ config }: Props) {
 
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
+    if (!form.customerId) errs.customerId = lang === "ar" ? "اختر عميلاً" : "Select a customer";
     for (const f of config.fields) {
       if (f.computed) continue;
+      if (f.fromCustomer) continue; // handle customer separately
       if (f.required && !form[f.name]?.trim()) {
         errs[f.name] = lang === "ar" ? "هذا الحقل مطلوب" : "This field is required";
       }
@@ -185,33 +238,87 @@ export function ServicePage({ config }: Props) {
         if (["price", "paid", "currency", "paymentMethod", "status", "customerId", "customerName", "customerNumber", "phoneNumber", "passportNumber", "nationalId"].includes(f.name)) continue;
         if (form[f.name]) details[f.name] = form[f.name];
       }
-      addService({
-        serviceType: config.serviceType,
-        customerId: form.customerId,
-        customerName: customer?.fullName ?? form.customerName ?? "—",
-        handledByEmployeeId: currentUser?.employeeId,
-        status,
-        price,
-        paid,
-        remaining: price - paid,
-        currency,
-        paymentMethod: method,
-        transferNo: form.transferNo,
-        notes: form.notes,
-        details,
-      });
+      if (editingId) {
+        updateService(editingId, {
+          status,
+          price,
+          paid,
+          remaining: price - paid,
+          currency,
+          paymentMethod: method,
+          transferNo: form.transferNo,
+          notes: form.notes,
+          details,
+        });
+        toast.success(lang === "ar" ? "تم تحديث المعاملة بنجاح" : "Transaction updated successfully");
+      } else {
+        addService({
+          serviceType: config.serviceType,
+          customerId: form.customerId,
+          customerName: customer?.fullName ?? form.customerName ?? "—",
+          handledByEmployeeId: currentUser?.employeeId,
+          status,
+          price,
+          paid,
+          remaining: price - paid,
+          currency,
+          paymentMethod: method,
+          transferNo: form.transferNo,
+          notes: form.notes,
+          details,
+        });
+        toast.success(lang === "ar" ? "تم حفظ المعاملة بنجاح" : "Transaction saved successfully");
+      }
       setSaving(false);
       setOpen(false);
       resetForm();
-      toast.success(
-        lang === "ar" ? "تم حفظ المعاملة بنجاح" : "Transaction saved successfully"
-      );
-    }, 500);
+    }, 400);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteId) return;
+    deleteService(deleteId);
+    setDeleteId(null);
+    toast.success(lang === "ar" ? "تم حذف المعاملة" : "Transaction deleted");
   };
 
   const printRecord = (record: (typeof services)[0]) => {
     setViewRecord(record);
     setTimeout(() => window.print(), 300);
+  };
+
+  const exportExcel = (period: "weekly" | "monthly") => {
+    const now = new Date();
+    const from = new Date(now);
+    if (period === "weekly") from.setDate(now.getDate() - 7);
+    else from.setMonth(now.getMonth() - 1);
+
+    const filtered = list.filter((s) => new Date(s.createdAt) >= from);
+    if (filtered.length === 0) {
+      toast.info(lang === "ar" ? "لا توجد بيانات للتصدير في الفترة المحددة" : "No data to export for the selected period");
+      return;
+    }
+    // توليد ملف CSV بسيط (Excel-compatible)
+    const headers = [tr(lang, "customer_name"), tr(lang, "audit_record_no"), tr(lang, "status"), tr(lang, "price"), tr(lang, "paid"), tr(lang, "remaining"), tr(lang, "date")];
+    const rows = filtered.map((s) => [
+      s.customerName,
+      s.serviceNumber,
+      tr(lang, statusColors[s.status].label),
+      String(s.price),
+      String(s.paid),
+      String(s.remaining),
+      new Date(s.createdAt).toLocaleDateString("en-GB"),
+    ]);
+    const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const bom = "\uFEFF"; // دعم العربية في Excel
+    const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${config.serviceType}_${period}_${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(lang === "ar" ? `تم تصدير ${filtered.length} سجل` : `Exported ${filtered.length} records`);
   };
 
   const renderField = (f: FieldDef) => {
@@ -225,12 +332,9 @@ export function ServicePage({ config }: Props) {
             {tr(lang, f.labelKey)}
             {f.required && <span className="text-destructive ms-1">*</span>}
           </Label>
-          <Select
-            value={form.customerId ?? ""}
-            onValueChange={(v) => onCustomerSelect(v)}
-          >
+          <Select value={form.customerId ?? ""} onValueChange={(v) => onCustomerSelect(v)}>
             <SelectTrigger className="h-10 bg-background">
-              <SelectValue placeholder={lang === "ar" ? "اختر عميلاً" : "Select customer"} />
+              <SelectValue placeholder={tr(lang, "select_customer")} />
             </SelectTrigger>
             <SelectContent>
               {customers.map((c) => (
@@ -240,6 +344,12 @@ export function ServicePage({ config }: Props) {
               ))}
             </SelectContent>
           </Select>
+          {customers.length === 0 && (
+            <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />
+              {tr(lang, "no_customers_yet")}
+            </p>
+          )}
           {err && <p className="text-xs text-destructive">{err}</p>}
         </div>
       );
@@ -286,6 +396,7 @@ export function ServicePage({ config }: Props) {
       );
     }
 
+    const isAutoFilledPassport = f.name === "passportNumber" && form.customerId && val;
     return (
       <div key={f.name} className={cn("space-y-1.5", f.span2 && "sm:col-span-2")}>
         <Label className="text-xs font-medium text-foreground">
@@ -294,6 +405,11 @@ export function ServicePage({ config }: Props) {
           {f.computed && (
             <span className="text-[10px] text-muted-foreground ms-1">
               ({lang === "ar" ? "محسوب تلقائياً" : "auto"})
+            </span>
+          )}
+          {isAutoFilledPassport && (
+            <span className="text-[10px] text-emerald-600 ms-1">
+              {tr(lang, "auto_filled_passport")}
             </span>
           )}
         </Label>
@@ -328,7 +444,6 @@ export function ServicePage({ config }: Props) {
     return "";
   };
 
-  // All fields including appended finance
   const allFields: FieldDef[] = config.withFinance
     ? [
         ...config.fields,
@@ -343,7 +458,7 @@ export function ServicePage({ config }: Props) {
           { value: "transfer", labelKey: "list_transfer" },
           { value: "wallet", labelKey: "list_wallet" },
         ] },
-        { name: "transferNo", labelKey: "f_transfer_no", type: "text", placeholder: "—", span2: false },
+        { name: "transferNo", labelKey: "f_transfer_no", type: "text", placeholder: "—" },
         { name: "paid", labelKey: "f_paid_amount", type: "number", placeholder: "0.00" },
         { name: "remaining", labelKey: "f_remaining", type: "text", computed: true },
         { name: "status", labelKey: "status", type: "select", required: true, options: [
@@ -357,26 +472,39 @@ export function ServicePage({ config }: Props) {
       ]
     : config.fields;
 
-  // Table columns (subset, hideInTable filtered)
   const tableFields = allFields.filter((f) => !f.hideInTable).slice(0, 6);
 
   return (
     <div className="space-y-5" dir={lang === "ar" ? "rtl" : "ltr"}>
-      {/* Page header */}
+      {/* تصنيف الخدمة عنوان واضح في أعلى القسم */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">{tr(lang, config.labelKey)}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {lang === "ar"
-              ? `إجمالي السجلات: ${list.length}`
-              : `Total records: ${list.length}`}
+            {lang === "ar" ? `إجمالي السجلات: ${list.length}` : `Total records: ${list.length}`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" className="bg-background gap-2" disabled>
-            <Printer className="w-4 h-4" />
-            {tr(lang, "export_excel")}
-          </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* تصدير Excel أسبوعي وشهري */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="bg-background gap-2">
+                <FileSpreadsheet className="w-4 h-4" />
+                {tr(lang, "export_excel")}
+                <ChevronDown className="w-3 h-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align={lang === "ar" ? "start" : "end"}>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExcel("weekly")}>
+                <Calendar className="w-4 h-4" />
+                {tr(lang, "export_weekly")}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExcel("monthly")}>
+                <Calendar className="w-4 h-4" />
+                {tr(lang, "export_monthly")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             className="gap-2 bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 shadow-sm"
             onClick={openCreate}
@@ -438,8 +566,19 @@ export function ServicePage({ config }: Props) {
               <TableBody>
                 {list.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={tableFields.length + 3} className="text-center py-10 text-muted-foreground">
-                      {tr(lang, "no_data")}
+                    <TableCell colSpan={tableFields.length + 3} className="text-center py-12">
+                      <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                        <div className="w-14 h-14 rounded-full bg-muted/60 flex items-center justify-center">
+                          <Plus className="w-6 h-6" />
+                        </div>
+                        <p className="text-sm">{tr(lang, "empty_services")}</p>
+                        {customers.length === 0 && (
+                          <Button variant="outline" size="sm" className="gap-2" onClick={() => setPage("customers")}>
+                            <UserPlus className="w-4 h-4" />
+                            {tr(lang, "nav_customers")}
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -476,30 +615,23 @@ export function ServicePage({ config }: Props) {
                           );
                         })}
                         <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className="text-[11px] font-medium gap-1"
-                            style={{ background: sc.bg, color: sc.fg }}
-                          >
+                          <Badge variant="secondary" className="text-[11px] font-medium gap-1" style={{ background: sc.bg, color: sc.fg }}>
                             {tr(lang, sc.label)}
                           </Badge>
                         </TableCell>
+                        {/* ترتيب الإجراءات: معاينة ← حذف ← تعديل ← طباعة */}
                         <TableCell className="text-end">
                           <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-primary"
-                              onClick={() => setViewRecord(s)}
-                            >
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={tr(lang, "action_preview")} onClick={() => setViewRecord(s)}>
                               <Eye className="w-4 h-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-primary"
-                              onClick={() => printRecord(s)}
-                            >
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title={tr(lang, "action_delete")} onClick={() => setDeleteId(s.id)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={tr(lang, "action_edit")} onClick={() => openEdit(s)}>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={tr(lang, "action_print")} onClick={() => printRecord(s)}>
                               <Printer className="w-4 h-4" />
                             </Button>
                           </div>
@@ -514,31 +646,21 @@ export function ServicePage({ config }: Props) {
         </CardContent>
       </Card>
 
-      {/* Create dialog */}
+      {/* Create/Edit dialog */}
       <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">
-              {tr(lang, "add")} — {tr(lang, config.labelKey)}
+              {editingId ? tr(lang, "action_edit") : tr(lang, "add")} — {tr(lang, config.labelKey)}
             </DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
             {allFields.map(renderField)}
           </div>
           <DialogFooter className="gap-2 sm:gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              {tr(lang, "cancel")}
-            </Button>
-            <Button
-              onClick={save}
-              disabled={saving}
-              className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2"
-            >
-              {saving ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <CheckCircle2 className="w-4 h-4" />
-              )}
+            <Button variant="outline" onClick={() => setOpen(false)}>{tr(lang, "cancel")}</Button>
+            <Button onClick={save} disabled={saving} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
               {tr(lang, "save")}
             </Button>
           </DialogFooter>
@@ -567,21 +689,21 @@ export function ServicePage({ config }: Props) {
                   {viewRecord && tr(lang, statusColors[viewRecord.status].label)}
                 </p>
               </div>
-              <div className="p-3 rounded-lg bg-[#F3E8FF]/40">
-                <p className="text-xs text-[#6D28D9]">{tr(lang, "price")}</p>
-                <p className="font-semibold text-[#6D28D9] num">
+              <div className="p-3 rounded-lg bg-pastel-lilac">
+                <p className="text-xs text-pastel-lilac">{tr(lang, "price")}</p>
+                <p className="font-semibold text-pastel-lilac num">
                   {viewRecord && `${viewRecord.price.toLocaleString("en-US")} ${currencySymbol(viewRecord.currency)}`}
                 </p>
               </div>
-              <div className="p-3 rounded-lg bg-[#ECFDF5]/60">
-                <p className="text-xs text-[#10B981]">{tr(lang, "paid")}</p>
-                <p className="font-semibold text-[#10B981] num">
+              <div className="p-3 rounded-lg bg-pastel-mint">
+                <p className="text-xs text-pastel-mint">{tr(lang, "paid")}</p>
+                <p className="font-semibold text-pastel-mint num">
                   {viewRecord && `${viewRecord.paid.toLocaleString("en-US")} ${currencySymbol(viewRecord.currency)}`}
                 </p>
               </div>
-              <div className="p-3 rounded-lg bg-[#FEF2F2]/60">
-                <p className="text-xs text-destructive">{tr(lang, "remaining")}</p>
-                <p className="font-semibold text-destructive num">
+              <div className="p-3 rounded-lg bg-pastel-peach">
+                <p className="text-xs text-pastel-peach">{tr(lang, "remaining")}</p>
+                <p className="font-semibold text-pastel-peach num">
                   {viewRecord && `${viewRecord.remaining.toLocaleString("en-US")} ${currencySymbol(viewRecord.currency)}`}
                 </p>
               </div>
@@ -592,7 +714,6 @@ export function ServicePage({ config }: Props) {
                 </p>
               </div>
             </div>
-            {/* Service-specific details */}
             <div className="border-t border-border pt-3">
               <h4 className="text-sm font-semibold mb-2">
                 {lang === "ar" ? "التفاصيل" : "Details"}
@@ -624,19 +745,35 @@ export function ServicePage({ config }: Props) {
             )}
           </div>
           <DialogFooter className="gap-2 sm:gap-2">
-            <Button variant="outline" onClick={() => setViewRecord(null)}>
-              {tr(lang, "cancel")}
-            </Button>
-            <Button
-              className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2"
-              onClick={() => viewRecord && printRecord(viewRecord)}
-            >
+            <Button variant="outline" onClick={() => setViewRecord(null)}>{tr(lang, "cancel")}</Button>
+            <Button className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2" onClick={() => viewRecord && printRecord(viewRecord)}>
               <Printer className="w-4 h-4" />
               {tr(lang, "print")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete confirm */}
+      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tr(lang, "action_delete")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {tr(lang, "confirm_delete_service")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tr(lang, "cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {tr(lang, "action_delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

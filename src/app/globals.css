@@ -106,39 +106,66 @@
   --pastel-yellow-icon: #EAB308;
 }
 
+/* الوضع الليلي — متناسق بالكامل مع الهوية البنفسجية */
 .dark {
-  --background: #0F172A;
-  --foreground: #F1F5F9;
-  --card: #1E293B;
-  --card-foreground: #F1F5F9;
-  --popover: #1E293B;
-  --popover-foreground: #F1F5F9;
+  --background: #0F0F1A;
+  --foreground: #E2E8F0;
+  --card: #1A1A2E;
+  --card-foreground: #E2E8F0;
+  --popover: #1A1A2E;
+  --popover-foreground: #E2E8F0;
   --primary: #A855F7;
   --primary-foreground: #FFFFFF;
   --secondary: #2D1B4E;
   --secondary-foreground: #C4B5FD;
-  --muted: #1E293B;
+  --muted: #1E1E32;
   --muted-foreground: #94A3B8;
   --accent: #2D1B4E;
   --accent-foreground: #C4B5FD;
   --destructive: #DC2626;
   --destructive-foreground: #FFFFFF;
-  --border: #334155;
-  --input: #334155;
+  --border: #2A2A40;
+  --input: #2A2A40;
   --ring: #A855F7;
+  /* Status colors — dark variants */
+  --status-pending: #FB923C;
+  --status-pending-bg: rgba(251, 146, 60, 0.15);
+  --status-processing: #60A5FA;
+  --status-processing-bg: rgba(96, 165, 250, 0.15);
+  --status-cancelled: #F87171;
+  --status-cancelled-bg: rgba(248, 113, 113, 0.15);
+  --status-shipped: #A855F7;
+  --status-shipped-bg: rgba(168, 85, 247, 0.15);
+  --status-out: #F472B6;
+  --status-out-bg: rgba(244, 114, 182, 0.15);
+  --status-delivered: #34D399;
+  --status-delivered-bg: rgba(52, 211, 153, 0.15);
+  /* Charts — keep identity */
   --chart-1: #A855F7;
   --chart-2: #FB923C;
   --chart-3: #34D399;
   --chart-4: #F472B6;
   --chart-5: #60A5FA;
-  --sidebar: #1E293B;
-  --sidebar-foreground: #F1F5F9;
+  /* Sidebar — dark with subtle purple tint */
+  --sidebar: #16162A;
+  --sidebar-foreground: #E2E8F0;
   --sidebar-primary: #A855F7;
   --sidebar-primary-foreground: #FFFFFF;
   --sidebar-accent: #2D1B4E;
   --sidebar-accent-foreground: #C4B5FD;
-  --sidebar-border: #334155;
+  --sidebar-border: #2A2A40;
   --sidebar-ring: #A855F7;
+  /* Pastel stat card colors — dark variants (more saturated for visibility) */
+  --pastel-lilac: rgba(168, 85, 247, 0.15);
+  --pastel-lilac-icon: #C4B5FD;
+  --pastel-sky: rgba(96, 165, 250, 0.15);
+  --pastel-sky-icon: #93C5FD;
+  --pastel-peach: rgba(251, 146, 60, 0.15);
+  --pastel-peach-icon: #FDBA74;
+  --pastel-mint: rgba(52, 211, 153, 0.15);
+  --pastel-mint-icon: #6EE7B7;
+  --pastel-yellow: rgba(250, 204, 21, 0.15);
+  --pastel-yellow-icon: #FDE047;
 }
 
 @layer base {
@@ -165,24 +192,19 @@
   transition: all 160ms ease;
 }
 .nav-item:hover {
-  background-color: #F3E8FF;
-  color: #6D28D9;
+  background-color: var(--sidebar-accent);
+  color: var(--sidebar-accent-foreground);
 }
 .nav-item:hover .nav-icon {
-  color: #6D28D9;
+  color: var(--sidebar-accent-foreground);
 }
 .nav-item.active {
-  background: linear-gradient(135deg, #7C3AED 0%, #A855F7 100%);
-  color: #FFFFFF;
+  background: linear-gradient(135deg, var(--primary) 0%, #A855F7 100%);
+  color: var(--primary-foreground);
   box-shadow: 0 4px 14px rgba(124, 58, 237, 0.25);
 }
 .nav-item.active .nav-icon {
-  color: #FFFFFF;
-}
-
-.dark .nav-item:hover {
-  background-color: #2D1B4E;
-  color: #C4B5FD;
+  color: var(--primary-foreground);
 }
 
 /* Custom scrollbar */
@@ -201,10 +223,10 @@
   background: #CBD5E1;
 }
 .dark ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #2A2A40;
 }
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #3A3A55;
 }
 
 /* Gradient brand text */
@@ -218,6 +240,9 @@
 /* Card shadow — soft */
 .card-shadow {
   box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+}
+.dark .card-shadow {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
 /* Sidebar active indicator (right side accent for RTL) */
@@ -255,4 +280,38 @@
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Dialog & Popover dark-mode override for shadcn/ui */
+.dark [data-slot="dialog-content"],
+.dark [data-slot="popover-content"],
+.dark [data-slot="dropdown-menu-content"],
+.dark [data-slot="select-content"] {
+  background-color: var(--card);
+  color: var(--card-foreground);
+  border-color: var(--border);
+}
+
+/* Table header dark mode */
+.dark table thead tr {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Pastel stat-card color helpers (work in both modes) */
+.bg-pastel-lilac { background-color: var(--pastel-lilac); }
+.text-pastel-lilac { color: var(--pastel-lilac-icon); }
+.bg-pastel-sky { background-color: var(--pastel-sky); }
+.text-pastel-sky { color: var(--pastel-sky-icon); }
+.bg-pastel-peach { background-color: var(--pastel-peach); }
+.text-pastel-peach { color: var(--pastel-peach-icon); }
+.bg-pastel-mint { background-color: var(--pastel-mint); }
+.text-pastel-mint { color: var(--pastel-mint-icon); }
+.bg-pastel-yellow { background-color: var(--pastel-yellow); }
+.text-pastel-yellow { color: var(--pastel-yellow-icon); }
+
+/* Footer */
+.app-footer {
+  border-top: 1px solid var(--border);
+  color: var(--muted-foreground);
+  background-color: var(--background);
 }

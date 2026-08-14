@@ -9,19 +9,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Table,
   TableBody,
@@ -30,15 +33,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import {
   Plus,
   Search,
-  User as UserIcon,
-  Phone,
-  IdCard,
+  Pencil,
+  Trash2,
+  ChevronDown,
+  FileSpreadsheet,
   Calendar,
-  TrendingUp,
+  CheckCircle2,
 } from "lucide-react";
 
 export function CustomersPage() {
@@ -46,9 +56,13 @@ export function CustomersPage() {
   const customers = useAppStore((s) => s.customers);
   const services = useAppStore((s) => s.services);
   const addCustomer = useAppStore((s) => s.addCustomer);
+  const updateCustomer = useAppStore((s) => s.updateCustomer);
+  const deleteCustomer = useAppStore((s) => s.deleteCustomer);
 
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState({
     fullName: "",
     phoneNumber: "",
@@ -70,22 +84,83 @@ export function CustomersPage() {
     );
   }, [customers, search]);
 
+  const openCreate = () => {
+    setForm({ fullName: "", phoneNumber: "", passportNumber: "", nationalId: "", referralSource: "" });
+    setEditingId(null);
+    setErrors({});
+    setOpen(true);
+  };
+
+  const openEdit = (c: typeof customers[0]) => {
+    setForm({
+      fullName: c.fullName,
+      phoneNumber: c.phoneNumber,
+      passportNumber: c.passportNumber ?? "",
+      nationalId: c.nationalId ?? "",
+      referralSource: c.referralSource ?? "",
+    });
+    setEditingId(c.id);
+    setErrors({});
+    setOpen(true);
+  };
+
   const submit = () => {
     const errs: Record<string, string> = {};
     if (!form.fullName.trim()) errs.fullName = lang === "ar" ? "مطلوب" : "Required";
     if (!form.phoneNumber.trim()) errs.phoneNumber = lang === "ar" ? "مطلوب" : "Required";
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
-    addCustomer({
-      fullName: form.fullName,
-      phoneNumber: form.phoneNumber,
-      passportNumber: form.passportNumber || undefined,
-      nationalId: form.nationalId || undefined,
-      referralSource: form.referralSource || undefined,
-    });
-    toast.success(lang === "ar" ? "تم حفظ العميل" : "Customer saved");
+
+    if (editingId) {
+      updateCustomer(editingId, form);
+      toast.success(lang === "ar" ? "تم تحديث العميل" : "Customer updated");
+    } else {
+      addCustomer(form);
+      toast.success(lang === "ar" ? "تم حفظ العميل" : "Customer saved");
+    }
     setOpen(false);
     setForm({ fullName: "", phoneNumber: "", passportNumber: "", nationalId: "", referralSource: "" });
+    setEditingId(null);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteId) return;
+    deleteCustomer(deleteId);
+    setDeleteId(null);
+    toast.success(lang === "ar" ? "تم حذف العميل" : "Customer deleted");
+  };
+
+  const exportExcel = (period: "weekly" | "monthly") => {
+    const now = new Date();
+    const from = new Date(now);
+    if (period === "weekly") from.setDate(now.getDate() - 7);
+    else from.setMonth(now.getMonth() - 1);
+
+    const filtered = list.filter((c) => new Date(c.createdAt) >= from);
+    if (filtered.length === 0) {
+      toast.info(lang === "ar" ? "لا توجد بيانات للتصدير في الفترة المحددة" : "No data to export for the selected period");
+      return;
+    }
+    const headers = [tr(lang, "customer_name"), tr(lang, "customer_number"), tr(lang, "phone"), tr(lang, "passport_number"), tr(lang, "customer_joined"), tr(lang, "customer_referral"), tr(lang, "status")];
+    const rows = filtered.map((c) => [
+      c.fullName,
+      c.customerNumber,
+      c.phoneNumber,
+      c.passportNumber ?? "",
+      c.joinedOn,
+      c.referralSource ?? "",
+      c.isActive ? tr(lang, "active") : tr(lang, "inactive"),
+    ]);
+    const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const bom = "\uFEFF";
+    const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `customers_${period}_${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(lang === "ar" ? `تم تصدير ${filtered.length} سجل` : `Exported ${filtered.length} records`);
   };
 
   return (
@@ -97,13 +172,35 @@ export function CustomersPage() {
             {lang === "ar" ? `إجمالي العملاء: ${customers.length}` : `Total customers: ${customers.length}`}
           </p>
         </div>
-        <Button
-          className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2 shadow-sm"
-          onClick={() => setOpen(true)}
-        >
-          <Plus className="w-4 h-4" />
-          {tr(lang, "add")}
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* تصدير Excel أسبوعي وشهري */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="bg-background gap-2">
+                <FileSpreadsheet className="w-4 h-4" />
+                {tr(lang, "export_excel")}
+                <ChevronDown className="w-3 h-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align={lang === "ar" ? "start" : "end"}>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExcel("weekly")}>
+                <Calendar className="w-4 h-4" />
+                {tr(lang, "export_weekly")}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExcel("monthly")}>
+                <Calendar className="w-4 h-4" />
+                {tr(lang, "export_monthly")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2 shadow-sm"
+            onClick={openCreate}
+          >
+            <Plus className="w-4 h-4" />
+            {tr(lang, "add")}
+          </Button>
+        </div>
       </div>
 
       <Card className="border-border card-shadow">
@@ -133,13 +230,19 @@ export function CustomersPage() {
                   <TableHead className="text-xs font-semibold">{tr(lang, "customer_joined")}</TableHead>
                   <TableHead className="text-xs font-semibold">{tr(lang, "customer_referral")}</TableHead>
                   <TableHead className="text-xs font-semibold">{tr(lang, "status")}</TableHead>
+                  <TableHead className="text-xs font-semibold text-end">{tr(lang, "actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {list.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
-                      {tr(lang, "no_data")}
+                    <TableCell colSpan={8} className="text-center py-12">
+                      <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                        <div className="w-14 h-14 rounded-full bg-muted/60 flex items-center justify-center">
+                          <Plus className="w-6 h-6" />
+                        </div>
+                        <p className="text-sm">{tr(lang, "empty_customers")}</p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -149,7 +252,7 @@ export function CustomersPage() {
                       <TableRow key={c.id} className="hover:bg-accent/30">
                         <TableCell>
                           <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#F3E8FF] to-[#EDE9FE] flex items-center justify-center text-[#6D28D9] font-bold text-sm">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#F3E8FF] to-[#EDE9FE] dark:from-pastel-lilac dark:to-pastel-lilac flex items-center justify-center text-[#6D28D9] dark:text-pastel-lilac font-bold text-sm">
                               {c.fullName.charAt(0)}
                             </div>
                             <div>
@@ -166,9 +269,20 @@ export function CustomersPage() {
                         <TableCell className="text-sm text-muted-foreground num">{c.joinedOn}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{c.referralSource ?? "—"}</TableCell>
                         <TableCell>
-                          <Badge variant="secondary" className={c.isActive ? "bg-[#ECFDF5] text-[#10B981]" : "bg-muted text-muted-foreground"}>
+                          <Badge variant="secondary" className={c.isActive ? "bg-pastel-mint text-pastel-mint" : "bg-muted text-muted-foreground"}>
                             {c.isActive ? tr(lang, "active") : tr(lang, "inactive")}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-end">
+                          <div className="flex items-center justify-end gap-1">
+                            {/* ترتيب الإجراءات: معاينة (مدمجة في تعديل) ← حذف ← تعديل */}
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title={tr(lang, "delete_customer")} onClick={() => setDeleteId(c.id)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={tr(lang, "edit_customer")} onClick={() => openEdit(c)}>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -180,11 +294,12 @@ export function CustomersPage() {
         </CardContent>
       </Card>
 
+      {/* Create/Edit dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">
-              {lang === "ar" ? "إضافة عميل جديد" : "Add new customer"}
+              {editingId ? tr(lang, "edit_customer") : tr(lang, "add")} — {tr(lang, "nav_customers")}
             </DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
@@ -213,10 +328,31 @@ export function CustomersPage() {
           </div>
           <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="outline" onClick={() => setOpen(false)}>{tr(lang, "cancel")}</Button>
-            <Button onClick={submit} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95">{tr(lang, "save")}</Button>
+            <Button onClick={submit} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2">
+              <CheckCircle2 className="w-4 h-4" />
+              {tr(lang, "save")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete confirm */}
+      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tr(lang, "delete_customer")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {tr(lang, "confirm_delete_customer")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tr(lang, "cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {tr(lang, "action_delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

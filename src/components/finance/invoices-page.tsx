@@ -3,9 +3,12 @@
 import { useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { tr } from "@/lib/translations";
+import type { Invoice } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -14,6 +17,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -21,14 +41,26 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Printer, Receipt as ReceiptIcon } from "lucide-react";
+import { toast } from "sonner";
+import { Printer, Receipt as ReceiptIcon, Pencil, Trash2, Eye } from "lucide-react";
 
 const currencySymbol = (c: string) => (c === "SAR" ? "ر.س" : c === "YER" ? "ر.ي" : "$");
 
 export function InvoicesPage() {
   const lang = useAppStore((s) => s.lang);
   const invoices = useAppStore((s) => s.invoices);
+  const updateInvoice = useAppStore((s) => s.updateInvoice);
+  const deleteInvoice = useAppStore((s) => s.deleteInvoice);
+
   const [statusFilter, setStatusFilter] = useState("all");
+  const [viewRecord, setViewRecord] = useState<Invoice | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{ totalAmount: number; paidAmount: number; status: string }>({
+    totalAmount: 0,
+    paidAmount: 0,
+    status: "issued",
+  });
 
   const list = invoices.filter((i) => statusFilter === "all" || i.status === statusFilter);
 
@@ -38,6 +70,41 @@ export function InvoicesPage() {
 
   const statusLabel = (s: string) =>
     s === "paid" ? tr(lang, "invoice_paid") : s === "partial" ? tr(lang, "invoice_partial") : s === "issued" ? tr(lang, "invoice_issued") : tr(lang, "invoice_draft");
+
+  const openEdit = (i: Invoice) => {
+    setEditForm({
+      totalAmount: i.totalAmount,
+      paidAmount: i.paidAmount,
+      status: i.status,
+    });
+    setEditId(i.id);
+  };
+
+  const saveEdit = () => {
+    if (!editId) return;
+    const i = invoices.find((x) => x.id === editId);
+    if (!i) return;
+    updateInvoice(editId, {
+      totalAmount: editForm.totalAmount,
+      paidAmount: editForm.paidAmount,
+      remainingAmount: editForm.totalAmount - editForm.paidAmount,
+      status: editForm.status as Invoice["status"],
+    });
+    toast.success(lang === "ar" ? "تم تحديث الفاتورة" : "Invoice updated");
+    setEditId(null);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteId) return;
+    deleteInvoice(deleteId);
+    setDeleteId(null);
+    toast.success(lang === "ar" ? "تم حذف الفاتورة" : "Invoice deleted");
+  };
+
+  const printInvoice = (i: Invoice) => {
+    setViewRecord(i);
+    setTimeout(() => window.print(), 300);
+  };
 
   return (
     <div className="space-y-5" dir={lang === "ar" ? "rtl" : "ltr"}>
@@ -62,13 +129,13 @@ export function InvoicesPage() {
         </Select>
       </div>
 
-      {/* Summary cards */}
+      {/* Summary cards — تم إزالة بطاقة صافي الربح نهائياً، نعرض: الإجمالي، المدفوع، المتبقي فقط */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="border-border card-shadow">
           <CardContent className="p-5">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-lg bg-[#F3E8FF] flex items-center justify-center">
-                <ReceiptIcon className="w-5 h-5 text-[#7C3AED]" />
+              <div className="w-10 h-10 rounded-lg bg-pastel-lilac flex items-center justify-center">
+                <ReceiptIcon className="w-5 h-5 text-pastel-lilac" />
               </div>
               <p className="text-xs text-muted-foreground">{tr(lang, "total")}</p>
             </div>
@@ -78,23 +145,23 @@ export function InvoicesPage() {
         <Card className="border-border card-shadow">
           <CardContent className="p-5">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-lg bg-[#ECFDF5] flex items-center justify-center">
-                <ReceiptIcon className="w-5 h-5 text-[#10B981]" />
+              <div className="w-10 h-10 rounded-lg bg-pastel-mint flex items-center justify-center">
+                <ReceiptIcon className="w-5 h-5 text-pastel-mint" />
               </div>
               <p className="text-xs text-muted-foreground">{tr(lang, "paid")}</p>
             </div>
-            <p className="text-2xl font-bold text-[#10B981] num">${Math.round(totalPaid).toLocaleString("en-US")}</p>
+            <p className="text-2xl font-bold text-pastel-mint num">${Math.round(totalPaid).toLocaleString("en-US")}</p>
           </CardContent>
         </Card>
         <Card className="border-border card-shadow">
           <CardContent className="p-5">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-lg bg-[#FEF2F2] flex items-center justify-center">
-                <ReceiptIcon className="w-5 h-5 text-destructive" />
+              <div className="w-10 h-10 rounded-lg bg-pastel-peach flex items-center justify-center">
+                <ReceiptIcon className="w-5 h-5 text-pastel-peach" />
               </div>
               <p className="text-xs text-muted-foreground">{tr(lang, "remaining")}</p>
             </div>
-            <p className="text-2xl font-bold text-destructive num">${Math.round(totalRemaining).toLocaleString("en-US")}</p>
+            <p className="text-2xl font-bold text-pastel-peach num">${Math.round(totalRemaining).toLocaleString("en-US")}</p>
           </CardContent>
         </Card>
       </div>
@@ -116,42 +183,207 @@ export function InvoicesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {list.map((i) => (
-                  <TableRow key={i.id} className="hover:bg-accent/30">
-                    <TableCell className="text-xs text-muted-foreground num font-medium">{i.invoiceNumber}</TableCell>
-                    <TableCell className="text-sm font-medium text-foreground">{i.customerName}</TableCell>
-                    <TableCell className="text-sm font-bold text-foreground num">
-                      {i.totalAmount.toLocaleString("en-US")} {currencySymbol(i.currency)}
-                    </TableCell>
-                    <TableCell className="text-sm text-[#10B981] num">
-                      {i.paidAmount.toLocaleString("en-US")} {currencySymbol(i.currency)}
-                    </TableCell>
-                    <TableCell className="text-sm text-destructive num">
-                      {i.remainingAmount.toLocaleString("en-US")} {currencySymbol(i.currency)}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground num">{new Date(i.issuedAt).toLocaleDateString("en-GB")}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className={
-                        i.status === "paid" ? "bg-[#ECFDF5] text-[#10B981]"
-                        : i.status === "partial" ? "bg-[#FEF9C3] text-[#EAB308]"
-                        : i.status === "issued" ? "bg-[#E0F2FE] text-[#0EA5E9]"
-                        : "bg-muted text-muted-foreground"
-                      }>
-                        {statusLabel(i.status)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-end">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
-                        <Printer className="w-4 h-4" />
-                      </Button>
+                {list.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-12 text-sm text-muted-foreground">
+                      {tr(lang, "empty_invoices")}
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  list.map((i) => (
+                    <TableRow key={i.id} className="hover:bg-accent/30">
+                      <TableCell className="text-xs text-muted-foreground num font-medium">{i.invoiceNumber}</TableCell>
+                      <TableCell className="text-sm font-medium text-foreground">{i.customerName}</TableCell>
+                      <TableCell className="text-sm font-bold text-foreground num">
+                        {i.totalAmount.toLocaleString("en-US")} {currencySymbol(i.currency)}
+                      </TableCell>
+                      <TableCell className="text-sm text-pastel-mint num">
+                        {i.paidAmount.toLocaleString("en-US")} {currencySymbol(i.currency)}
+                      </TableCell>
+                      <TableCell className="text-sm text-pastel-peach num">
+                        {i.remainingAmount.toLocaleString("en-US")} {currencySymbol(i.currency)}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground num">{new Date(i.issuedAt).toLocaleDateString("en-GB")}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className={
+                          i.status === "paid" ? "bg-pastel-mint text-pastel-mint"
+                          : i.status === "partial" ? "bg-pastel-yellow text-pastel-yellow"
+                          : i.status === "issued" ? "bg-pastel-sky text-pastel-sky"
+                          : "bg-muted text-muted-foreground"
+                        }>
+                          {statusLabel(i.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-end">
+                        <div className="flex items-center justify-end gap-1">
+                          {/* ترتيب: معاينة ← حذف ← تعديل ← طباعة */}
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={tr(lang, "action_preview")} onClick={() => setViewRecord(i)}>
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title={tr(lang, "delete_invoice")} onClick={() => setDeleteId(i.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={tr(lang, "edit_invoice")} onClick={() => openEdit(i)}>
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={tr(lang, "print_invoice")} onClick={() => printInvoice(i)}>
+                            <Printer className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
         </CardContent>
       </Card>
+
+      {/* View / Print dialog */}
+      <Dialog open={!!viewRecord} onOpenChange={(o) => !o && setViewRecord(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <ReceiptIcon className="w-5 h-5 text-primary" />
+              {tr(lang, "print_invoice")}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {/* فاتورة رسمية مهيأة للعربية وRTL */}
+            <div className="border border-border rounded-lg p-6 bg-card">
+              <div className="flex items-start justify-between mb-6 pb-4 border-b border-border">
+                <div>
+                  <h2 className="text-xl font-bold text-foreground">{tr(lang, "brand_name")}</h2>
+                  <p className="text-xs text-muted-foreground">{tr(lang, "brand_sub")}</p>
+                </div>
+                <div className="text-end">
+                  <p className="text-xs text-muted-foreground">{tr(lang, "invoice_no")}</p>
+                  <p className="font-bold text-foreground num">{viewRecord?.invoiceNumber}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">{tr(lang, "customer_name")}</p>
+                  <p className="font-semibold text-foreground">{viewRecord?.customerName}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">{tr(lang, "invoice_date")}</p>
+                  <p className="font-semibold text-foreground num">
+                    {viewRecord && new Date(viewRecord.issuedAt).toLocaleDateString("en-GB")}
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-2 border-t border-border pt-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{tr(lang, "total")}</span>
+                  <span className="font-bold text-foreground num">
+                    {viewRecord && `${viewRecord.totalAmount.toLocaleString("en-US")} ${currencySymbol(viewRecord.currency)}`}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{tr(lang, "paid")}</span>
+                  <span className="font-bold text-pastel-mint num">
+                    {viewRecord && `${viewRecord.paidAmount.toLocaleString("en-US")} ${currencySymbol(viewRecord.currency)}`}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{tr(lang, "remaining")}</span>
+                  <span className="font-bold text-pastel-peach num">
+                    {viewRecord && `${viewRecord.remainingAmount.toLocaleString("en-US")} ${currencySymbol(viewRecord.currency)}`}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm pt-2 border-t border-border">
+                  <span className="text-muted-foreground">{tr(lang, "invoice_status")}</span>
+                  <span className="font-bold text-foreground">{viewRecord && statusLabel(viewRecord.status)}</span>
+                </div>
+              </div>
+              <div className="mt-6 pt-4 border-t border-border text-center text-[11px] text-muted-foreground">
+                {tr(lang, "footer_copyright")}
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setViewRecord(null)}>{tr(lang, "cancel")}</Button>
+            <Button className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2" onClick={() => viewRecord && printInvoice(viewRecord)}>
+              <Printer className="w-4 h-4" />
+              {tr(lang, "print")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit dialog */}
+      <Dialog open={!!editId} onOpenChange={(o) => !o && setEditId(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <Pencil className="w-5 h-5 text-primary" />
+              {tr(lang, "edit_invoice")}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-1.5">
+              <Label>{tr(lang, "total")}</Label>
+              <Input
+                type="number"
+                value={editForm.totalAmount}
+                onChange={(e) => setEditForm({ ...editForm, totalAmount: parseFloat(e.target.value || "0") })}
+                className="bg-background num"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{tr(lang, "paid")}</Label>
+              <Input
+                type="number"
+                value={editForm.paidAmount}
+                onChange={(e) => setEditForm({ ...editForm, paidAmount: parseFloat(e.target.value || "0") })}
+                className="bg-background num"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{tr(lang, "invoice_status")}</Label>
+              <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
+                <SelectTrigger className="bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">{tr(lang, "invoice_draft")}</SelectItem>
+                  <SelectItem value="issued">{tr(lang, "invoice_issued")}</SelectItem>
+                  <SelectItem value="partial">{tr(lang, "invoice_partial")}</SelectItem>
+                  <SelectItem value="paid">{tr(lang, "invoice_paid")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/40 text-sm">
+              <p className="text-muted-foreground">{tr(lang, "remaining")}</p>
+              <p className="font-bold text-foreground num">
+                {(editForm.totalAmount - editForm.paidAmount).toLocaleString("en-US")}
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setEditId(null)}>{tr(lang, "cancel")}</Button>
+            <Button onClick={saveEdit} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95">{tr(lang, "save")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirm */}
+      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tr(lang, "delete_invoice")}</AlertDialogTitle>
+            <AlertDialogDescription>{tr(lang, "confirm_delete_invoice")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tr(lang, "cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {tr(lang, "action_delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

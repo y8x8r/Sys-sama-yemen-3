@@ -80,12 +80,24 @@ export interface Employee {
 export interface User {
   id: string;
   username: string;
+  /** كلمة المرور مجزّأة — لا تُعرض في أي واجهة */
+  passwordHash: string;
   role: Role;
   employeeId?: string;
   isActive: boolean;
   mustChangePassword: boolean;
   lastLoginAt?: string;
   createdAt: string;
+}
+
+/** مستوى الصلاحية الدقيقة لكل وحدة — يحددها المدير العام فقط */
+export type PermissionLevel = "read" | "write" | "update" | "book" | "full";
+
+/** صلاحيات موظف على وحدة محددة */
+export interface UserPermission {
+  userId: string;
+  moduleKey: string;
+  level: PermissionLevel;
 }
 
 export interface Agent {
@@ -201,6 +213,18 @@ export interface VisaExpiryRecord {
   daysRemaining: number;
   visaKind: string;
   status: "near" | "urgent" | "expired";
+}
+
+/** إشعار نظامي — يُنشأ تلقائياً عند الأحداث المهمة */
+export interface Notification {
+  id: string;
+  title: string;
+  body: string;
+  type: "info" | "warning" | "success" | "danger";
+  moduleKey?: string;
+  relatedEntityId?: string;
+  isRead: boolean;
+  createdAt: string;
 }
 
 export type NavSection =

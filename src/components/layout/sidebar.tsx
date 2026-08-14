@@ -223,8 +223,8 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="px-4 py-3 border-t border-sidebar-border">
-        <div className="text-[11px] text-muted-foreground text-center">
-          {lang === "ar" ? "© سما اليمن 2026" : "© Sama Yemen 2026"}
+        <div className="text-[11px] text-muted-foreground text-center leading-relaxed">
+          {tr(lang, "footer_copyright")}
         </div>
       </div>
     </aside>

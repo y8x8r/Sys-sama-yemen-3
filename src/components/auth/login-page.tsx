@@ -33,12 +33,6 @@ export function LoginPage() {
     }, 500);
   };
 
-  const fillDemo = (u: string) => {
-    setUsername(u);
-    setPassword("1234");
-    setErr("");
-  };
-
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Brand panel */}
@@ -175,38 +169,6 @@ export function LoginPage() {
                   )}
                 </Button>
               </form>
-
-              <div className="mt-6 pt-4 border-t border-border">
-                <p className="text-xs text-muted-foreground text-center mb-3">
-                  {tr(lang, "demo_credentials")}
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { u: "manager", l: tr(lang, "role_manager"), color: "#7C3AED" },
-                    { u: "accountant", l: tr(lang, "role_accountant"), color: "#F97316" },
-                    { u: "booking", l: tr(lang, "role_booking"), color: "#10B981" },
-                  ].map((r) => (
-                    <button
-                      key={r.u}
-                      type="button"
-                      onClick={() => fillDemo(r.u)}
-                      className="rounded-lg border border-border p-2 hover:border-primary transition-colors text-center"
-                    >
-                      <div
-                        className="w-7 h-7 mx-auto rounded-full mb-1 flex items-center justify-center text-white text-xs font-bold"
-                        style={{ background: r.color }}
-                      >
-                        {r.l.charAt(0)}
-                      </div>
-                      <div className="text-xs font-medium text-foreground">{r.l}</div>
-                      <div className="text-[10px] text-muted-foreground">{r.u}</div>
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[10px] text-muted-foreground text-center mt-2">
-                  {lang === "ar" ? "كلمة المرور التجريبية: 1234" : "Demo password: 1234"}
-                </p>
-              </div>
             </CardContent>
           </Card>
         </div>

@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { tr } from "@/lib/translations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -19,12 +21,14 @@ import {
   Globe,
   Moon,
   Sun,
-  RotateCcw,
   Shield,
   Wallet,
   BarChart3,
-  Trash2,
   MoonStar,
+  KeyRound,
+  Eye,
+  EyeOff,
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -33,12 +37,33 @@ export function SystemSettingsPage() {
   const theme = useAppStore((s) => s.theme);
   const setLang = useAppStore((s) => s.setLang);
   const setTheme = useAppStore((s) => s.setTheme);
-  const resetDemo = useAppStore((s) => s.resetDemo);
+  const currentUser = useAppStore((s) => s.currentUser);
+  const changePassword = useAppStore((s) => s.changePassword);
 
-  const handleReset = () => {
-    resetDemo();
-    toast.success(lang === "ar" ? "تم إعادة ضبط البيانات التجريبية" : "Demo data reset");
+  const [pwdForm, setPwdForm] = useState({ current: "", next: "", confirm: "" });
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNext, setShowNext] = useState(false);
+  const [pwdErrors, setPwdErrors] = useState<Record<string, string>>({});
+
+  const handleChangePassword = () => {
+    const errs: Record<string, string> = {};
+    if (!pwdForm.current) errs.current = lang === "ar" ? "مطلوب" : "Required";
+    if (pwdForm.next.length < 4) errs.next = tr(lang, "err_password_short");
+    if (pwdForm.next !== pwdForm.confirm) errs.confirm = lang === "ar" ? "كلمتا المرور غير متطابقتين" : "Passwords don't match";
+    setPwdErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+
+    const ok = changePassword(pwdForm.current, pwdForm.next);
+    if (!ok) {
+      setPwdErrors({ current: tr(lang, "err_wrong_password") });
+      return;
+    }
+    toast.success(tr(lang, "password_changed"));
+    setPwdForm({ current: "", next: "", confirm: "" });
   };
+
+  // فقط المدير العام يستطيع تغيير كلمة المرور
+  const isManager = currentUser?.role === "manager";
 
   return (
     <div className="space-y-5" dir={lang === "ar" ? "rtl" : "ltr"}>
@@ -100,7 +125,7 @@ export function SystemSettingsPage() {
             <div className="grid grid-cols-2 gap-3">
               {[
                 { value: "light", label: tr(lang, "settings_light"), icon: Sun, color: "#F97316" },
-                { value: "dark", label: tr(lang, "settings_dark"), icon: Moon, color: "#7C3AED" },
+                { value: "dark", label: tr(lang, "settings_dark"), icon: Moon, color: "#A855F7" },
               ].map((o) => (
                 <button
                   key={o.value}
@@ -113,13 +138,13 @@ export function SystemSettingsPage() {
                 >
                   <div
                     className="w-9 h-9 rounded-lg flex items-center justify-center"
-                    style={{ background: o.value === "light" ? "#FFEDD5" : "#1E293B" }}
+                    style={{ background: o.value === "light" ? "#FFEDD5" : "#1A1A2E" }}
                   >
                     <o.icon className="w-4 h-4" style={{ color: o.color }} />
                   </div>
                   <span className="text-sm font-medium text-foreground">{o.label}</span>
                   {theme === o.value && (
-                    <Badge variant="secondary" className="ms-auto bg-[#F3E8FF] text-[#6D28D9] text-[10px]">
+                    <Badge variant="secondary" className="ms-auto bg-pastel-lilac text-pastel-lilac text-[10px]">
                       {lang === "ar" ? "نشط" : "Active"}
                     </Badge>
                   )}
@@ -128,8 +153,8 @@ export function SystemSettingsPage() {
             </div>
             <p className="text-[11px] text-muted-foreground mt-3">
               {lang === "ar"
-                ? "الوضع الليلي يحافظ على الهوية البنفسجية والتباين."
-                : "Dark mode preserves the purple identity and contrast."}
+                ? "الوضع الليلي يغير المظهر الخارجي والداخلي الكامل للنظام بشكل متناسق، والوضع النهاري يعيده كاملاً."
+                : "Dark mode changes the entire external and internal appearance consistently, and light mode restores it fully."}
             </p>
           </CardContent>
         </Card>
@@ -198,8 +223,8 @@ export function SystemSettingsPage() {
               ].map((m) => (
                 <div key={m.key} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-[#F3E8FF] flex items-center justify-center">
-                      <m.icon className="w-4 h-4 text-[#6D28D9]" />
+                    <div className="w-9 h-9 rounded-lg bg-pastel-lilac flex items-center justify-center">
+                      <m.icon className="w-4 h-4 text-pastel-lilac" />
                     </div>
                     <Label className="text-sm font-medium cursor-pointer">{m.label}</Label>
                   </div>
@@ -212,9 +237,9 @@ export function SystemSettingsPage() {
                 {lang === "ar" ? "العملات المدعومة" : "Supported currencies"}
               </Label>
               <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary" className="bg-[#ECFDF5] text-[#10B981]">ر.س (SAR)</Badge>
-                <Badge variant="secondary" className="bg-[#FFEDD5] text-[#F97316]">ر.ي (YER)</Badge>
-                <Badge variant="secondary" className="bg-[#E0F2FE] text-[#0EA5E9]">$ (USD)</Badge>
+                <Badge variant="secondary" className="bg-pastel-mint text-pastel-mint">ر.س (SAR)</Badge>
+                <Badge variant="secondary" className="bg-pastel-peach text-pastel-peach">ر.ي (YER)</Badge>
+                <Badge variant="secondary" className="bg-pastel-sky text-pastel-sky">$ (USD)</Badge>
               </div>
             </div>
           </CardContent>
@@ -277,33 +302,88 @@ export function SystemSettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Danger zone */}
-        <Card className="border-destructive/30 card-shadow lg:col-span-2">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold flex items-center gap-2 text-destructive">
-              <Trash2 className="w-4 h-4" />
-              {lang === "ar" ? "منطقة الخطر" : "Danger Zone"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <Label className="text-sm font-medium">
-                  {lang === "ar" ? "إعادة ضبط البيانات التجريبية" : "Reset demo data"}
-                </Label>
-                <p className="text-[11px] text-muted-foreground">
-                  {lang === "ar"
-                    ? "إعادة جميع البيانات إلى حالتها الأصلية. لن يمكن التراجع عن هذا الإجراء."
-                    : "Reset all data to original state. This action cannot be undone."}
-                </p>
+        {/* Change Password — متاح للمدير العام لتغيير كلمة مروره */}
+        {isManager && (
+          <Card className="border-border card-shadow lg:col-span-2">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-primary" />
+                {tr(lang, "change_password")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label>{tr(lang, "current_password")} *</Label>
+                  <div className="relative">
+                    <Input
+                      type={showCurrent ? "text" : "password"}
+                      value={pwdForm.current}
+                      onChange={(e) => setPwdForm({ ...pwdForm, current: e.target.value })}
+                      className="bg-background pe-9"
+                      dir="ltr"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrent(!showCurrent)}
+                      className="absolute inset-y-0 end-3 my-auto text-muted-foreground hover:text-foreground"
+                    >
+                      {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {pwdErrors.current && <p className="text-xs text-destructive">{pwdErrors.current}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{tr(lang, "new_password")} *</Label>
+                  <div className="relative">
+                    <Input
+                      type={showNext ? "text" : "password"}
+                      value={pwdForm.next}
+                      onChange={(e) => setPwdForm({ ...pwdForm, next: e.target.value })}
+                      className="bg-background pe-9"
+                      dir="ltr"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNext(!showNext)}
+                      className="absolute inset-y-0 end-3 my-auto text-muted-foreground hover:text-foreground"
+                    >
+                      {showNext ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {pwdErrors.next && <p className="text-xs text-destructive">{pwdErrors.next}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{tr(lang, "confirm_password")} *</Label>
+                  <Input
+                    type={showNext ? "text" : "password"}
+                    value={pwdForm.confirm}
+                    onChange={(e) => setPwdForm({ ...pwdForm, confirm: e.target.value })}
+                    className="bg-background"
+                    dir="ltr"
+                  />
+                  {pwdErrors.confirm && <p className="text-xs text-destructive">{pwdErrors.confirm}</p>}
+                </div>
               </div>
-              <Button variant="outline" className="border-destructive text-destructive hover:bg-destructive/10 gap-2" onClick={handleReset}>
-                <RotateCcw className="w-4 h-4" />
-                {lang === "ar" ? "إعادة الضبط" : "Reset"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="mt-4 flex justify-end">
+                <Button
+                  onClick={handleChangePassword}
+                  className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  {tr(lang, "change_password")}
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-3">
+                {lang === "ar"
+                  ? "يمكن للمدير العام تغيير كلمة مروره الخاصة به في أي وقت عبر مسار آمن."
+                  : "The General Manager can change his own password at any time through a secure path."}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* تم إزالة «منطقة الخطر» نهائياً — لا يوجد بديل ولا قسم مشابه */}
       </div>
     </div>
   );

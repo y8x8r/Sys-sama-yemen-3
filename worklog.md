@@ -35,3 +35,46 @@ Stage Summary:
 - متوسط زمن الاستجابة: ~100ms للصفحات.
 - بيانات تجريبية واقعية لـ 10 عملاء و16 معاملة و12 فاتورة و6 دفعات و5 مصروفات.
 - الملفات الناتجة في /home/z/my-project/download/: dashboard-final.png, dashboard-english.png, dashboard-preview.png, invoices-dark.png, statistics.png, visa-expiry-data.png, audit-log.png
+
+---
+Task ID: 2
+Agent: Main Agent (Super Z)
+Task: تنفيذ التعديلات الرسمية المحددة النطاق (10 أقسام) على نظام سما اليمن — مع الحفاظ على كل ما هو خارج النطاق.
+
+Work Log:
+- تحديث types.ts: إضافة Notification، PermissionLevel، UserPermission، تحديث User ليحتوي passwordHash بدلاً من كلمة مرور مكشوفة.
+- تحديث mock-data.ts: حذف جميع البيانات التجريبية (عملاء، خدمات، فواتير، مدفوعات، مصروفات، سجلات تدقيق، إشعارات). إنشاء حساب المدير العام الوحيد user1/sama1 على مستوى التهيئة. إضافة allServiceTypes للاستخدام في شاشة «تحديد نوع الخدمة».
+- تحديث store.ts: إضافة إجراءات addEmployee/updateEmployee/deleteEmployee/setUserPermission/toggleUserActive/changePassword/updateCustomer/deleteCustomer/updateAgent/deleteAgent/updateTransportCompany/deleteTransportCompany/updateService/deleteService/updateInvoice/deleteInvoice/addExpense/markNotificationRead/markAllNotificationsRead. حساب visaExpiry ديناميكياً عند كل تغيير في services.
+- تحديث translations.ts: إضافة ~60 مفتاح جديد (role_general_manager، create_employee، f_employee_name، f_username، f_employee_password، perm_read/write/update/book/full، change_password، edit_customer/delete_customer، export_weekly/monthly، action_preview/delete/edit/print، select_service_type، add_expense، f_expense_purpose/date، footer_copyright، empty_* states، select_customer، no_customers_yet، auto_filled_passport).
+- تحديث globals.css: إضافة فئات dark-mode متناسقة بالكامل — خلفية #0F0F1A، cards #1A1A2E، sidebar #16162A، pastel colors بنسخ داكنة، overrides لـ dialog/popover/dropdown/table-header. إضافة .app-footer.
+- تحديث login-page.tsx: حذف قسم «بيانات تجريبية للدخول» نهائياً وأزرار الدخول السريع للأدوار.
+- تحديث sidebar.tsx: التذييل يعرض «جميع الحقوق محفوظة لدى Sky Link 2026».
+- تحديث dashboard-layout.tsx: إضافة تذييل سفلي بنفس النص.
+- تحديث topbar.tsx: العلامة الحمراء تظهر فقط عند وجود إشعارات غير مقروءة، عداد رقمي بدلاً من نقطة. زر «تعليم الكل كمقروء». النقر على إشعار يضعه في حالة «تمت المشاهدة».
+- تحديث dashboard-page.tsx: زر «إضافة معاملة» يفتح شاشة «تحديد نوع الخدمة» (21 خيار). حذف بطاقة صافي الربح نهائياً (4 بطاقات KPI فقط). حذف تقرير صافي الربح من تقرير الأداء. حالة فارغة رسمية عند عدم وجود بيانات.
+- تحديث service-page.tsx: ترتيب الإجراءات (معاينة ← حذف ← تعديل ← طباعة). زر تصدير Excel بقائمة منسدلة (تصدير أسبوعي/شهري). اختيار العميل من سجل موحد (combobox). اعتماد رقم الجواز تلقائياً من ملف العميل مع رسالة «(معبأ تلقائياً من ملف العميل)». تعديل وحذف المعاملات مع تأكيد.
+- تحديث service-configs.ts: إزالة fromCustomer من حقول (customerNumber, phoneNumber, passportNumber, nationalId) — أصبحت حقول نصية تُعبأ تلقائياً. fromCustomer يقتصر على customerName فقط.
+- تحديث customers-page.tsx: إضافة تعديل وحذف مع تأكيد. تصدير Excel أسبوعي/شهري (CSV مع BOM لدعم العربية). حالة فارغة رسمية.
+- تحديث employees-page.tsx: نموذج إنشاء حساب موظف بالحقول الأربعة فقط (اسم الموظف ← اسم المستخدم ← الدور ← كلمة مرور الموظف). اعتماد فوري بعد الحفظ. تعديل وحذف مع تأكيد. قسم تعديل الصلاحيات الدقيقة (قراءة/كتابة/تعديل/حجز/صلاحيات كاملة) لكل وحدة. قفل الصفحة لغير المدير العام.
+- تحديث agents-companies-page.tsx: إضافة، تعديل، حذف للوكلاء والشركات مع اعتماد فوري وتوست تأكيد.
+- تحديث invoices-page.tsx: طباعة فاتورة رسمية مهيأة للعربية وRTL. تعديل (المبلغ الإجمالي، المدفوع، الحالة) وحذف مع تأكيد. ترتيب الإجراءات (معاينة ← حذف ← تعديل ← طباعة). إزالة بطاقة صافي الربح (3 بطاقات فقط: الإجمالي، المدفوع، المتبقي).
+- تحديث revenues-expenses-page.tsx: نموذج «إضافة مصروف» بالحقول المطلوبة (رقم المصروف تلقائي ← غرض الصرف ← تاريخ الصرف ← المبلغ + العملة). إزالة بطاقة صافي الربح (بطاقتان فقط: الإيرادات، المصروفات). إزالة صافي الربح من المخطط والجداول.
+- تحديث system-settings-page.tsx: حذف قسم «منطقة الخطر» نهائياً. إضافة بطاقة «تغيير كلمة المرور» للمدير العام (كلمة المرور الحالية + الجديدة + التأكيد).
+- تحديث users-permissions-page.tsx: تحديث أدوار الأذونات الثلاثة المعتمدة (مدير عام، مسؤول حجوزات، محاسب) بصلاحياتها المحددة. قفل الصفحة لغير المدير العام.
+
+Stage Summary:
+- تم تطبيق جميع بنود التعديل العشرة دون المساس بأي عنصر خارج النطاق.
+- الحساب الأولي الوحيد: user1/sama1 بدور مدير عام. لا توجد حسابات تجريبية أخرى. لا تظهر بيانات الدخول في شاشة الدخول.
+- تم حذف جميع البيانات التجريبية نهائياً. الواجهات تعرض حالات فارغة رسمية.
+- تم حذف «منطقة الخطر» نهائياً من الإعدادات.
+- الوضع الليلي متناسق بالكامل (خلفية، شريط جانبي، رأس علوي، تذييل، بطاقات، جداول، نوافذ منبثقة، قوائم منسدلة، حالات فارغة، مخططات).
+- زر «إضافة معاملة» يفتح شاشة «تحديد نوع الخدمة» بدلاً من نموذج مباشر.
+- ترتيب الإجراءات في جميع الخدمات: معاينة ← حذف ← تعديل ← طباعة.
+- تصدير Excel أسبوعي وشهري في قائمة العملاء وفي قائمة كل خدمة.
+- اختيار العميل من سجل موحد + اعتماد رقم الجواز تلقائياً من ملف العميل عند توفره.
+- نموذج إضافة مصروف: رقم تلقائي ← غرض الصرف ← تاريخ الصرف ← المبلغ. لا يوجد خيار صافي الربح في أي واجهة.
+- الإشعارات: العلامة الحمراء تظهر فقط للإشعارات غير المقروءة، وتُزال عند الاطلاع، وتُزال من الأيقونة عند عدم بقاء إشعارات غير مقروءة.
+- التذييل: «جميع الحقوق محفوظة لدى Sky Link 2026» في كل صفحة.
+- ESLint نظيف بدون أخطاء.
+- VLM أكد: تقييم 9/10 للوضع الليلي متناسق بالكامل مع الهوية البنفسجية والتذييل ظاهر.
+- ملفات لقطات الشاشة في /home/z/my-project/download/: dashboard-empty-light.png, dashboard-empty-dark.png, dashboard-final-light.png, dashboard-final-dark.png, notifications-test.png

@@ -12,8 +12,8 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     withFinance: true,
     fields: [
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
-      { name: "customerNumber", labelKey: "f_customer_number", type: "text", fromCustomer: "customerNumber" },
-      { name: "passportNumber", labelKey: "f_passport", type: "text", fromCustomer: "passportNumber" },
+      { name: "customerNumber", labelKey: "f_customer_number", type: "text" },
+      { name: "passportNumber", labelKey: "f_passport", type: "text" },
       { name: "programName", labelKey: "f_program_name", type: "text", required: true, placeholder: "حج تمتع 2026" },
       { name: "programNumber", labelKey: "f_program_number", type: "text", placeholder: "PRG-HJJ-001" },
       { name: "programType", labelKey: "f_program_type", type: "select", options: [
@@ -31,8 +31,8 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     withFinance: true,
     fields: [
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
-      { name: "customerNumber", labelKey: "f_customer_number", type: "text", fromCustomer: "customerNumber" },
-      { name: "passportNumber", labelKey: "f_passport", type: "text", fromCustomer: "passportNumber" },
+      { name: "customerNumber", labelKey: "f_customer_number", type: "text" },
+      { name: "passportNumber", labelKey: "f_passport", type: "text" },
     ],
   },
   umrah_program: {
@@ -41,8 +41,8 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     withFinance: true,
     fields: [
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
-      { name: "customerNumber", labelKey: "f_customer_number", type: "text", fromCustomer: "customerNumber" },
-      { name: "passportNumber", labelKey: "f_passport", type: "text", fromCustomer: "passportNumber" },
+      { name: "customerNumber", labelKey: "f_customer_number", type: "text" },
+      { name: "passportNumber", labelKey: "f_passport", type: "text" },
       { name: "programName", labelKey: "f_program_name", type: "text", required: true },
       { name: "programNumber", labelKey: "f_program_number", type: "text" },
       { name: "programType", labelKey: "f_program_type", type: "select", options: [
@@ -69,8 +69,8 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     withFinance: true,
     fields: [
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
-      { name: "customerNumber", labelKey: "f_customer_number", type: "text", fromCustomer: "customerNumber" },
-      { name: "passportNumber", labelKey: "f_passport", type: "text", fromCustomer: "passportNumber" },
+      { name: "customerNumber", labelKey: "f_customer_number", type: "text" },
+      { name: "passportNumber", labelKey: "f_passport", type: "text" },
       { name: "agency", labelKey: "f_program_provider", type: "text", placeholder: "الوكالة المزوّدة للتأشيرة" },
       { name: "entryDate", labelKey: "f_entry_date", type: "date" },
       { name: "exitDate", labelKey: "f_exit_date", type: "date" },
@@ -99,7 +99,7 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     withFinance: true,
     fields: [
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
-      { name: "phoneNumber", labelKey: "f_phone", type: "tel", fromCustomer: "phoneNumber" },
+      { name: "phoneNumber", labelKey: "f_phone", type: "tel" },
       { name: "cardNumber", labelKey: "f_card_number", type: "text" },
       { name: "governorate", labelKey: "f_governorate", type: "select", options: [
         { value: "aden", labelKey: "gov_aden" },
@@ -130,7 +130,7 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     withFinance: true,
     fields: [
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
-      { name: "phoneNumber", labelKey: "f_phone", type: "tel", fromCustomer: "phoneNumber" },
+      { name: "phoneNumber", labelKey: "f_phone", type: "tel" },
       { name: "cardNumber", labelKey: "f_card_number", type: "text" },
       { name: "requestType", labelKey: "f_request_type", type: "select", options: [
         { value: "new", labelKey: "list_new" },
@@ -151,7 +151,7 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     withFinance: true,
     fields: [
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
-      { name: "customerNumber", labelKey: "f_customer_number", type: "text", fromCustomer: "customerNumber" },
+      { name: "customerNumber", labelKey: "f_customer_number", type: "text" },
       { name: "route", labelKey: "f_route", type: "text", placeholder: "عدن → القاهرة", required: true },
       { name: "company", labelKey: "f_company_name", type: "text" },
       { name: "ticketNo", labelKey: "f_ticket_number", type: "text" },
@@ -169,8 +169,8 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     withFinance: true,
     fields: [
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
-      { name: "customerNumber", labelKey: "f_customer_number", type: "text", fromCustomer: "customerNumber" },
-      { name: "passportNumber", labelKey: "f_passport", type: "text", fromCustomer: "passportNumber" },
+      { name: "customerNumber", labelKey: "f_customer_number", type: "text" },
+      { name: "passportNumber", labelKey: "f_passport", type: "text" },
       { name: "companyName", labelKey: "f_company_name", type: "text" },
       { name: "route", labelKey: "f_route", type: "text", placeholder: "من ← إلى", required: true },
       { name: "tripDate", labelKey: "date", type: "date" },
@@ -188,8 +188,8 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     withFinance: true,
     fields: [
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
-      { name: "customerNumber", labelKey: "f_customer_number", type: "text", fromCustomer: "customerNumber" },
-      { name: "passportNumber", labelKey: "f_passport", type: "text", fromCustomer: "passportNumber" },
+      { name: "customerNumber", labelKey: "f_customer_number", type: "text" },
+      { name: "passportNumber", labelKey: "f_passport", type: "text" },
       { name: "carType", labelKey: "f_car_type", type: "text" },
       { name: "carModel", labelKey: "f_car_model", type: "text" },
       { name: "route", labelKey: "f_route", type: "text", required: true },
@@ -205,8 +205,8 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     withFinance: true,
     fields: [
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
-      { name: "customerNumber", labelKey: "f_customer_number", type: "text", fromCustomer: "customerNumber" },
-      { name: "passportNumber", labelKey: "f_passport", type: "text", fromCustomer: "passportNumber" },
+      { name: "customerNumber", labelKey: "f_customer_number", type: "text" },
+      { name: "passportNumber", labelKey: "f_passport", type: "text" },
       { name: "driverName", labelKey: "f_driver_name", type: "text" },
       { name: "route", labelKey: "f_route", type: "text", required: true },
       { name: "tripDate", labelKey: "date", type: "date" },
@@ -221,7 +221,7 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     withFinance: true,
     fields: [
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
-      { name: "customerNumber", labelKey: "f_customer_number", type: "text", fromCustomer: "customerNumber" },
+      { name: "customerNumber", labelKey: "f_customer_number", type: "text" },
       { name: "cardNumber", labelKey: "f_card_number", type: "text" },
       { name: "carType", labelKey: "f_car_type", type: "text" },
       { name: "carModel", labelKey: "f_car_model", type: "text" },
@@ -240,8 +240,8 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     withFinance: true,
     fields: [
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
-      { name: "customerNumber", labelKey: "f_customer_number", type: "text", fromCustomer: "customerNumber" },
-      { name: "passportNumber", labelKey: "f_passport", type: "text", fromCustomer: "passportNumber" },
+      { name: "customerNumber", labelKey: "f_customer_number", type: "text" },
+      { name: "passportNumber", labelKey: "f_passport", type: "text" },
       { name: "diseaseName", labelKey: "f_disease_name", type: "text" },
       { name: "destination", labelKey: "f_destination", type: "text" },
       { name: "validity", labelKey: "f_visa_validity", type: "text", placeholder: "90 يوم" },
@@ -255,9 +255,9 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     withFinance: true,
     fields: [
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
-      { name: "customerNumber", labelKey: "f_customer_number", type: "text", fromCustomer: "customerNumber" },
+      { name: "customerNumber", labelKey: "f_customer_number", type: "text" },
       { name: "destination", labelKey: "f_destination", type: "text", required: true },
-      { name: "passportNumber", labelKey: "f_passport", type: "text", fromCustomer: "passportNumber" },
+      { name: "passportNumber", labelKey: "f_passport", type: "text" },
       { name: "validity", labelKey: "f_visa_validity", type: "text" },
       { name: "processingPeriod", labelKey: "f_processing_period", type: "text" },
       { name: "deportDate", labelKey: "f_deport_date", type: "date" },
@@ -269,8 +269,8 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     withFinance: true,
     fields: [
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
-      { name: "customerNumber", labelKey: "f_customer_number", type: "text", fromCustomer: "customerNumber" },
-      { name: "passportNumber", labelKey: "f_passport", type: "text", fromCustomer: "passportNumber" },
+      { name: "customerNumber", labelKey: "f_customer_number", type: "text" },
+      { name: "passportNumber", labelKey: "f_passport", type: "text" },
       { name: "visaType", labelKey: "f_visa_type", type: "select", options: [
         { value: "work_3m", labelKey: "list_work_3m" },
         { value: "work_self", labelKey: "list_work_self" },
@@ -288,8 +288,8 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     withFinance: true,
     fields: [
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
-      { name: "customerNumber", labelKey: "f_customer_number", type: "text", fromCustomer: "customerNumber" },
-      { name: "passportNumber", labelKey: "f_passport", type: "text", fromCustomer: "passportNumber" },
+      { name: "customerNumber", labelKey: "f_customer_number", type: "text" },
+      { name: "passportNumber", labelKey: "f_passport", type: "text" },
       { name: "hostName", labelKey: "f_host_name", type: "text" },
       { name: "hostNo", labelKey: "f_host_number", type: "tel" },
       { name: "visaDuration", labelKey: "f_visa_duration", type: "text" },
@@ -306,7 +306,7 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     withFinance: true,
     fields: [
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
-      { name: "customerNumber", labelKey: "f_customer_number", type: "text", fromCustomer: "customerNumber" },
+      { name: "customerNumber", labelKey: "f_customer_number", type: "text" },
       { name: "shipmentType", labelKey: "f_shipment_type", type: "text" },
       { name: "shipmentWeight", labelKey: "f_shipment_weight", type: "text", placeholder: "25 كجم" },
       { name: "shippingType", labelKey: "f_shipping_type", type: "select", options: [
@@ -327,7 +327,7 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     withFinance: true,
     fields: [
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
-      { name: "customerNumber", labelKey: "f_customer_number", type: "text", fromCustomer: "customerNumber" },
+      { name: "customerNumber", labelKey: "f_customer_number", type: "text" },
       { name: "shipmentType", labelKey: "f_shipment_type", type: "text" },
       { name: "shipmentQty", labelKey: "f_shipment_qty", type: "text" },
       { name: "shipmentWeight", labelKey: "f_shipment_weight", type: "text" },
@@ -344,8 +344,8 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     withFinance: true,
     fields: [
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
-      { name: "customerNumber", labelKey: "f_customer_number", type: "text", fromCustomer: "customerNumber" },
-      { name: "passportNumber", labelKey: "f_passport", type: "text", fromCustomer: "passportNumber" },
+      { name: "customerNumber", labelKey: "f_customer_number", type: "text" },
+      { name: "passportNumber", labelKey: "f_passport", type: "text" },
       { name: "country", labelKey: "f_country", type: "select", options: [
         { value: "egypt", labelKey: "egypt" },
         { value: "jordan", labelKey: "jordan" },
@@ -371,8 +371,8 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     withFinance: true,
     fields: [
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
-      { name: "customerNumber", labelKey: "f_customer_number", type: "text", fromCustomer: "customerNumber" },
-      { name: "passportNumber", labelKey: "f_passport", type: "text", fromCustomer: "passportNumber" },
+      { name: "customerNumber", labelKey: "f_customer_number", type: "text" },
+      { name: "passportNumber", labelKey: "f_passport", type: "text" },
       { name: "reportCountry", labelKey: "f_report_country", type: "select", options: [
         { value: "egypt", labelKey: "egypt" },
         { value: "jordan", labelKey: "jordan" },
@@ -408,8 +408,8 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     withFinance: true,
     fields: [
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
-      { name: "customerNumber", labelKey: "f_customer_number", type: "text", fromCustomer: "customerNumber" },
-      { name: "passportNumber", labelKey: "f_passport", type: "text", fromCustomer: "passportNumber" },
+      { name: "customerNumber", labelKey: "f_customer_number", type: "text" },
+      { name: "passportNumber", labelKey: "f_passport", type: "text" },
       { name: "city", labelKey: "f_city", type: "text", placeholder: "جدة" },
       { name: "hotelName", labelKey: "f_hotel_name", type: "text" },
       { name: "arrivalDate", labelKey: "f_arrival_date", type: "date" },
