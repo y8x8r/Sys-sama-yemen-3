@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { tr } from "@/lib/translations";
-import type { Role, PermissionLevel } from "@/lib/types";
+import type { Role } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,61 +41,30 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
   Plus,
   Trash2,
-  Pencil,
   Shield,
   KeyRound,
+  UserCog,
+  Lock,
   Eye,
   EyeOff,
-  Lock,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
-
-const roleLabel = (lang: "ar" | "en", r: Role) =>
-  r === "manager" ? tr(lang, "role_general_manager")
-  : r === "accountant" ? tr(lang, "role_accountant")
-  : tr(lang, "role_booking");
-
-const roleColor = (r: string) =>
-  r === "manager" ? "bg-pastel-lilac text-pastel-lilac"
-  : r === "accountant" ? "bg-pastel-peach text-pastel-peach"
-  : "bg-pastel-mint text-pastel-mint";
-
-const permissionLevels: PermissionLevel[] = ["read", "write", "update", "book", "full"];
-const permissionLabel = (lang: "ar" | "en", l: PermissionLevel) =>
-  l === "read" ? tr(lang, "perm_read")
-  : l === "write" ? tr(lang, "perm_write")
-  : l === "update" ? tr(lang, "perm_update")
-  : l === "book" ? tr(lang, "perm_book")
-  : tr(lang, "perm_full");
-
-const modules = [
-  { key: "services", label_ar: "الخدمات", label_en: "Services" },
-  { key: "customers", label_ar: "العملاء", label_en: "Customers" },
-  { key: "finance", label_ar: "المالية", label_en: "Finance" },
-  { key: "monitoring", label_ar: "المراقبة", label_en: "Monitoring" },
-  { key: "reports", label_ar: "التقارير", label_en: "Reports" },
-];
 
 export function EmployeesPage() {
   const lang = useAppStore((s) => s.lang);
   const currentUser = useAppStore((s) => s.currentUser);
   const employees = useAppStore((s) => s.employees);
   const users = useAppStore((s) => s.users);
-  const userPermissions = useAppStore((s) => s.userPermissions);
   const addEmployee = useAppStore((s) => s.addEmployee);
-  const updateEmployee = useAppStore((s) => s.updateEmployee);
   const deleteEmployee = useAppStore((s) => s.deleteEmployee);
-  const setUserPermission = useAppStore((s) => s.setUserPermission);
-  const toggleUserActive = useAppStore((s) => s.toggleUserActive);
 
   const [open, setOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [permissionsFor, setPermissionsFor] = useState<string | null>(null);
   const [form, setForm] = useState({
     fullName: "",
     username: "",
@@ -104,9 +73,19 @@ export function EmployeesPage() {
   });
   const [showPwd, setShowPwd] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
 
-  // فقط المدير العام يستطيع إدارة الموظفين والحسابات
   const isManager = currentUser?.role === "manager";
+
+  const roleLabel = (r: Role) =>
+    r === "manager" ? tr(lang, "role_general_manager")
+    : r === "accountant" ? tr(lang, "role_accountant")
+    : tr(lang, "role_booking");
+
+  const roleColor = (r: string) =>
+    r === "manager" ? "bg-pastel-lilac text-pastel-lilac"
+    : r === "accountant" ? "bg-pastel-peach text-pastel-peach"
+    : "bg-pastel-mint text-pastel-mint";
 
   const openCreate = () => {
     if (!isManager) {
@@ -118,7 +97,7 @@ export function EmployeesPage() {
     setOpen(true);
   };
 
-  const submit = () => {
+  const submit = async () => {
     const errs: Record<string, string> = {};
     if (!form.fullName.trim()) errs.fullName = lang === "ar" ? "مطلوب" : "Required";
     if (!form.username.trim()) errs.username = lang === "ar" ? "مطلوب" : "Required";
@@ -126,9 +105,14 @@ export function EmployeesPage() {
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    const result = addEmployee(form);
+    setSaving(true);
+    const result = await addEmployee(form);
+    setSaving(false);
     if (!result.ok) {
-      toast.error(result.error ?? tr(lang, "err_username_exists"));
+      const errKey = result.error ?? "server_error";
+      const msg = errKey === "username_exists" ? tr(lang, "err_username_exists") : errKey;
+      setErrors({ username: msg });
+      toast.error(msg);
       return;
     }
     toast.success(lang === "ar" ? "تم إنشاء حساب الموظف فوراً" : "Employee account created immediately");
@@ -136,21 +120,15 @@ export function EmployeesPage() {
     setForm({ fullName: "", username: "", role: "booking_officer", password: "" });
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteId) return;
-    deleteEmployee(deleteId);
-    setDeleteId(null);
-    toast.success(lang === "ar" ? "تم حذف الموظف" : "Employee deleted");
-  };
-
-  const getPermission = (userId: string, moduleKey: string): PermissionLevel | null => {
-    const p = userPermissions.find((p) => p.userId === userId && p.moduleKey === moduleKey);
-    return p?.level ?? null;
-  };
-
-  const handleSetPermission = (userId: string, moduleKey: string, level: PermissionLevel) => {
-    setUserPermission(userId, moduleKey, level);
-    toast.success(lang === "ar" ? "تم تحديث الصلاحية" : "Permission updated");
+    try {
+      await deleteEmployee(deleteId);
+      setDeleteId(null);
+      toast.success(lang === "ar" ? "تم حذف الموظف" : "Employee deleted");
+    } catch (err) {
+      toast.error(lang === "ar" ? "فشل الحذف" : "Failed to delete");
+    }
   };
 
   if (!isManager) {
@@ -160,32 +138,21 @@ export function EmployeesPage() {
           <CardContent className="p-12 text-center">
             <Lock className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">{tr(lang, "only_manager_can_manage")}</h3>
-            <p className="text-sm text-muted-foreground">
-              {lang === "ar"
-                ? "صفحة إدارة الموظفين متاحة للمدير العام فقط."
-                : "Employee management is only available to the General Manager."}
-            </p>
+            <p className="text-sm text-muted-foreground">{lang === "ar" ? "صفحة إدارة الموظفين متاحة للمدير العام فقط." : "Employee management is only available to the General Manager."}</p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  const permissionsUser = permissionsFor ? users.find((u) => u.id === permissionsFor) : null;
-
   return (
     <div className="space-y-5" dir={lang === "ar" ? "rtl" : "ltr"}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">{tr(lang, "nav_employees")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {lang === "ar" ? `إجمالي الموظفين: ${employees.length}` : `Total employees: ${employees.length}`}
-          </p>
+          <p className="text-sm text-muted-foreground mt-1">{lang === "ar" ? `إجمالي الموظفين: ${employees.length}` : `Total employees: ${employees.length}`}</p>
         </div>
-        <Button
-          className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2 shadow-sm"
-          onClick={openCreate}
-        >
+        <Button className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2 shadow-sm" onClick={openCreate}>
           <Plus className="w-4 h-4" />
           {tr(lang, "create_employee")}
         </Button>
@@ -207,59 +174,26 @@ export function EmployeesPage() {
               </TableHeader>
               <TableBody>
                 {employees.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12">
-                      <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                        <div className="w-14 h-14 rounded-full bg-muted/60 flex items-center justify-center">
-                          <Plus className="w-6 h-6" />
-                        </div>
-                        <p className="text-sm">{tr(lang, "empty_employees")}</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-12"><div className="flex flex-col items-center gap-3 text-muted-foreground"><div className="w-14 h-14 rounded-full bg-muted/60 flex items-center justify-center"><Plus className="w-6 h-6" /></div><p className="text-sm">{tr(lang, "empty_employees")}</p></div></TableCell></TableRow>
                 ) : (
-                  employees.map((e) => {
-                    const linkedUser = users.find((u) => u.employeeId === e.id);
+                  employees.map((e: any) => {
+                    const linkedUser = users.find((u: any) => u.employeeId === e.id);
                     return (
                       <TableRow key={e.id} className="hover:bg-accent/30">
                         <TableCell>
                           <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-pastel-sky to-pastel-sky flex items-center justify-center text-pastel-sky font-bold text-sm">
-                              {e.fullName.charAt(0)}
-                            </div>
-                            <div>
-                              <div className="font-medium text-foreground text-sm">{e.fullName}</div>
-                              <div className="text-[11px] text-muted-foreground">{e.jobTitle}</div>
-                            </div>
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-pastel-sky to-pastel-sky flex items-center justify-center text-pastel-sky font-bold text-sm">{e.fullName.charAt(0)}</div>
+                            <div><div className="font-medium text-foreground text-sm">{e.fullName}</div><div className="text-[11px] text-muted-foreground">{e.jobTitle}</div></div>
                           </div>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground num">{e.employeeNumber}</TableCell>
                         <TableCell className="text-sm text-muted-foreground num">@{linkedUser?.username ?? "—"}</TableCell>
-                        <TableCell>
-                          {linkedUser && (
-                            <Badge variant="secondary" className={roleColor(linkedUser.role)}>
-                              {roleLabel(lang, linkedUser.role)}
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {linkedUser && (
-                            <Badge variant="secondary" className={linkedUser.isActive ? "bg-pastel-mint text-pastel-mint" : "bg-muted text-muted-foreground"}>
-                              {linkedUser.isActive ? tr(lang, "active") : tr(lang, "inactive")}
-                            </Badge>
-                          )}
-                        </TableCell>
+                        <TableCell>{linkedUser && <Badge variant="secondary" className={roleColor(linkedUser.role)}>{roleLabel(linkedUser.role)}</Badge>}</TableCell>
+                        <TableCell>{linkedUser && <Badge variant="secondary" className={linkedUser.isActive ? "bg-pastel-mint text-pastel-mint" : "bg-muted text-muted-foreground"}>{linkedUser.isActive ? tr(lang, "active") : tr(lang, "inactive")}</Badge>}</TableCell>
                         <TableCell className="text-end">
-                          <div className="flex items-center justify-end gap-1">
-                            {linkedUser && (
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={tr(lang, "edit_permissions")} onClick={() => setPermissionsFor(linkedUser.id)}>
-                                <Shield className="w-4 h-4" />
-                              </Button>
-                            )}
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title={tr(lang, "action_delete")} onClick={() => setDeleteId(e.id)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title={tr(lang, "action_delete")} onClick={() => setDeleteId(e.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -275,39 +209,23 @@ export function EmployeesPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold flex items-center gap-2">
-              <Plus className="w-5 h-5 text-primary" />
-              {tr(lang, "create_employee")}
-            </DialogTitle>
+            <DialogTitle className="text-lg font-bold flex items-center gap-2"><Plus className="w-5 h-5 text-primary" />{tr(lang, "create_employee")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-1.5">
               <Label>{tr(lang, "f_employee_name")} *</Label>
-              <Input
-                value={form.fullName}
-                onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-                className="bg-background"
-                placeholder={lang === "ar" ? "الاسم الكامل" : "Full name"}
-              />
+              <Input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="bg-background" placeholder={lang === "ar" ? "الاسم الكامل" : "Full name"} />
               {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
             </div>
             <div className="space-y-1.5">
               <Label>{tr(lang, "f_username")} *</Label>
-              <Input
-                value={form.username}
-                onChange={(e) => setForm({ ...form, username: e.target.value })}
-                className="bg-background num"
-                placeholder="username"
-                dir="ltr"
-              />
+              <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} className="bg-background num" placeholder="username" dir="ltr" />
               {errors.username && <p className="text-xs text-destructive">{errors.username}</p>}
             </div>
             <div className="space-y-1.5">
               <Label>{tr(lang, "role")} *</Label>
               <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as Role })}>
-                <SelectTrigger className="bg-background">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="manager">{tr(lang, "role_general_manager")}</SelectItem>
                   <SelectItem value="booking_officer">{tr(lang, "role_booking")}</SelectItem>
@@ -318,110 +236,32 @@ export function EmployeesPage() {
             <div className="space-y-1.5">
               <Label>{tr(lang, "f_employee_password")} *</Label>
               <div className="relative">
-                <Input
-                  type={showPwd ? "text" : "password"}
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="bg-background pe-9"
-                  dir="ltr"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPwd(!showPwd)}
-                  className="absolute inset-y-0 end-3 my-auto text-muted-foreground hover:text-foreground"
-                >
-                  {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+                <Input type={showPwd ? "text" : "password"} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="bg-background pe-9" dir="ltr" />
+                <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute inset-y-0 end-3 my-auto text-muted-foreground hover:text-foreground">{showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
               </div>
               {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
-              <p className="text-[11px] text-muted-foreground">
-                {lang === "ar" ? "لن تظهر كلمة المرور لاحقاً في أي جدول أو سجل." : "Password will not be shown later in any table or log."}
-              </p>
+              <p className="text-[11px] text-muted-foreground">{lang === "ar" ? "لن تظهر كلمة المرور لاحقاً في أي جدول أو سجل." : "Password will not be shown later in any table or log."}</p>
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="outline" onClick={() => setOpen(false)}>{tr(lang, "cancel")}</Button>
-            <Button onClick={submit} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2">
-              <CheckCircle2 className="w-4 h-4" />
+            <Button onClick={submit} disabled={saving} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
               {tr(lang, "save")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Permissions Dialog */}
-      <Dialog open={!!permissionsFor} onOpenChange={(o) => !o && setPermissionsFor(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold flex items-center gap-2">
-              <Shield className="w-5 h-5 text-primary" />
-              {tr(lang, "edit_permissions")} — {permissionsUser?.username}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-4">
-            {permissionsUser?.role === "manager" && (
-              <div className="p-3 rounded-lg bg-pastel-lilac text-sm">
-                <p className="font-medium text-pastel-lilac mb-1">
-                  {tr(lang, "role_general_manager")}
-                </p>
-                <p className="text-xs text-pastel-lilac opacity-80">
-                  {lang === "ar"
-                    ? "المدير العام يملك صلاحيات كاملة على جميع الوحدات تلقائياً ولا يمكن تقييدها."
-                    : "General Manager has full access to all modules automatically and cannot be restricted."}
-                </p>
-              </div>
-            )}
-            {permissionsUser && permissionsUser.role !== "manager" && (
-              modules.map((m) => {
-                const current = getPermission(permissionsUser.id, m.key);
-                return (
-                  <div key={m.key} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {lang === "ar" ? m.label_ar : m.label_en}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {current ? permissionLabel(lang, current) : (lang === "ar" ? "غير محدد" : "Not set")}
-                      </p>
-                    </div>
-                    <Select
-                      value={current ?? ""}
-                      onValueChange={(v) => handleSetPermission(permissionsUser.id, m.key, v as PermissionLevel)}
-                    >
-                      <SelectTrigger className="w-40 bg-background">
-                        <SelectValue placeholder={lang === "ar" ? "اختر" : "Select"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {permissionLevels.map((l) => (
-                          <SelectItem key={l} value={l}>{permissionLabel(lang, l)}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                );
-              })
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPermissionsFor(null)}>{tr(lang, "cancel")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete confirm */}
       <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{tr(lang, "action_delete")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {lang === "ar" ? "سيتم الحفاظ على السجل التاريخي للعمليات. هل أنت متأكد؟" : "Historical records will be preserved. Are you sure?"}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{lang === "ar" ? "سيتم الحفاظ على السجل التاريخي للعمليات. هل أنت متأكد؟" : "Historical records will be preserved. Are you sure?"}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{tr(lang, "cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {tr(lang, "action_delete")}
-            </AlertDialogAction>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{tr(lang, "action_delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

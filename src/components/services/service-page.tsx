@@ -64,13 +64,13 @@ import {
   Trash2,
   Pencil,
   CheckCircle2,
-  XCircle,
   Loader2,
   ChevronDown,
   FileSpreadsheet,
   Calendar,
   AlertCircle,
   UserPlus,
+  FileText,
 } from "lucide-react";
 
 export interface FieldDef {
@@ -114,7 +114,7 @@ export function ServicePage({ config }: Props) {
   const currentUser = useAppStore((s) => s.currentUser);
   const addService = useAppStore((s) => s.addService);
   const updateService = useAppStore((s) => s.updateService);
-  const deleteService = useAppStore((s) => s.deleteService);
+  const cancelService = useAppStore((s) => s.cancelService);
   const setPage = useAppStore((s) => s.setPage);
 
   const [open, setOpen] = useState(false);
@@ -122,11 +122,13 @@ export function ServicePage({ config }: Props) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [viewRecord, setViewRecord] = useState<null | (typeof services)[0]>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [cancelId, setCancelId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
 
   const [form, setForm] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [formDirty, setFormDirty] = useState(false);
 
   const list = useMemo(() => {
     let l = services.filter((s) => s.serviceType === config.serviceType);
@@ -149,6 +151,7 @@ export function ServicePage({ config }: Props) {
     setForm({});
     setErrors({});
     setEditingId(null);
+    setFormDirty(false);
   };
 
   const openCreate = () => {
@@ -168,6 +171,7 @@ export function ServicePage({ config }: Props) {
       customerNumber: customers.find((c) => c.id === record.customerId)?.customerNumber ?? "",
       phoneNumber: customers.find((c) => c.id === record.customerId)?.phoneNumber ?? "",
       passportNumber: record.details.passportNumber as string ?? customers.find((c) => c.id === record.customerId)?.passportNumber ?? "",
+      cardNumber: record.details.cardNumber as string ?? customers.find((c) => c.id === record.customerId)?.cardNumber ?? "",
       nationalId: customers.find((c) => c.id === record.customerId)?.nationalId ?? "",
       price: String(record.price),
       paid: String(record.paid),
@@ -178,11 +182,12 @@ export function ServicePage({ config }: Props) {
       notes: record.notes ?? "",
     };
     for (const f of config.fields) {
-      if (["customerId", "customerName", "customerNumber", "phoneNumber", "passportNumber", "nationalId", "price", "paid", "currency", "paymentMethod", "transferNo", "status", "notes"].includes(f.name)) continue;
+      if (["customerId", "customerName", "customerNumber", "phoneNumber", "passportNumber", "cardNumber", "nationalId", "price", "paid", "currency", "paymentMethod", "transferNo", "status", "notes"].includes(f.name)) continue;
       if (record.details[f.name] !== undefined) newForm[f.name] = String(record.details[f.name]);
     }
     setForm(newForm);
     setEditingId(record.id);
+    setFormDirty(false);
     setOpen(true);
   };
 
@@ -196,6 +201,8 @@ export function ServicePage({ config }: Props) {
     next.phoneNumber = c.phoneNumber;
     // اعتماد رقم الجواز تلقائياً من ملف العميل عند توفره
     if (c.passportNumber) next.passportNumber = c.passportNumber;
+    // اعتماد رقم البطاقة تلقائياً من ملف العميل عند توفره
+    if (c.cardNumber) next.cardNumber = c.cardNumber;
     if (c.nationalId) next.nationalId = c.nationalId;
     setForm(next);
   };
@@ -205,7 +212,7 @@ export function ServicePage({ config }: Props) {
     if (!form.customerId) errs.customerId = lang === "ar" ? "اختر عميلاً" : "Select a customer";
     for (const f of config.fields) {
       if (f.computed) continue;
-      if (f.fromCustomer) continue; // handle customer separately
+      if (f.fromCustomer) continue;
       if (f.required && !form[f.name]?.trim()) {
         errs[f.name] = lang === "ar" ? "هذا الحقل مطلوب" : "This field is required";
       }
@@ -220,30 +227,30 @@ export function ServicePage({ config }: Props) {
     return Object.keys(errs).length === 0;
   };
 
-  const save = () => {
+  const save = async () => {
     if (!validate()) {
       toast.error(lang === "ar" ? "تحقق من الحقول المطلوبة" : "Check required fields");
       return;
     }
     setSaving(true);
-    setTimeout(() => {
-      const price = parseFloat(form.price || "0");
-      const paid = parseFloat(form.paid || "0");
-      const currency = (form.currency as Currency) || "SAR";
-      const method = form.paymentMethod as PaymentMethod | undefined;
-      const status = (form.status as ServiceStatus) || "pending";
-      const customer = customers.find((c) => c.id === form.customerId);
-      const details: Record<string, string | number | undefined> = {};
-      for (const f of config.fields) {
-        if (["price", "paid", "currency", "paymentMethod", "status", "customerId", "customerName", "customerNumber", "phoneNumber", "passportNumber", "nationalId"].includes(f.name)) continue;
-        if (form[f.name]) details[f.name] = form[f.name];
-      }
+    const price = parseFloat(form.price || "0");
+    const paid = parseFloat(form.paid || "0");
+    const currency = (form.currency as Currency) || "SAR";
+    const method = form.paymentMethod as PaymentMethod | undefined;
+    const status = (form.status as ServiceStatus) || "pending";
+    const customer = customers.find((c) => c.id === form.customerId);
+    const details: Record<string, string | number | undefined> = {};
+    for (const f of config.fields) {
+      if (["price", "paid", "currency", "paymentMethod", "status", "customerId", "customerName", "customerNumber", "phoneNumber", "passportNumber", "cardNumber", "nationalId"].includes(f.name)) continue;
+      if (form[f.name]) details[f.name] = form[f.name];
+    }
+
+    try {
       if (editingId) {
-        updateService(editingId, {
+        await updateService(editingId, {
           status,
           price,
           paid,
-          remaining: price - paid,
           currency,
           paymentMethod: method,
           transferNo: form.transferNo,
@@ -252,7 +259,7 @@ export function ServicePage({ config }: Props) {
         });
         toast.success(lang === "ar" ? "تم تحديث المعاملة بنجاح" : "Transaction updated successfully");
       } else {
-        addService({
+        const result = await addService({
           serviceType: config.serviceType,
           customerId: form.customerId,
           customerName: customer?.fullName ?? form.customerName ?? "—",
@@ -267,19 +274,36 @@ export function ServicePage({ config }: Props) {
           notes: form.notes,
           details,
         });
-        toast.success(lang === "ar" ? "تم حفظ المعاملة بنجاح" : "Transaction saved successfully");
+        if (result) {
+          toast.success(lang === "ar" ? "تم حفظ المعاملة بنجاح" : "Transaction saved successfully");
+        } else {
+          toast.error(lang === "ar" ? "فشل حفظ المعاملة" : "Failed to save transaction");
+          setSaving(false);
+          return;
+        }
       }
       setSaving(false);
       setOpen(false);
       resetForm();
-    }, 400);
+    } catch (err) {
+      setSaving(false);
+      toast.error(lang === "ar" ? "حدث خطأ أثناء الحفظ" : "An error occurred while saving");
+    }
   };
 
-  const confirmDelete = () => {
-    if (!deleteId) return;
-    deleteService(deleteId);
-    setDeleteId(null);
-    toast.success(lang === "ar" ? "تم حذف المعاملة" : "Transaction deleted");
+  const confirmCancel = async () => {
+    if (!cancelId || !cancelReason.trim()) {
+      toast.error(lang === "ar" ? "سبب الإلغاء إلزامي" : "Cancel reason is required");
+      return;
+    }
+    try {
+      await cancelService(cancelId, cancelReason.trim());
+      setCancelId(null);
+      setCancelReason("");
+      toast.success(lang === "ar" ? "تم إلغاء المعاملة" : "Transaction cancelled");
+    } catch (err) {
+      toast.error(lang === "ar" ? "فشل إلغاء المعاملة" : "Failed to cancel transaction");
+    }
   };
 
   const printRecord = (record: (typeof services)[0]) => {
@@ -288,37 +312,22 @@ export function ServicePage({ config }: Props) {
   };
 
   const exportExcel = (period: "weekly" | "monthly") => {
-    const now = new Date();
-    const from = new Date(now);
-    if (period === "weekly") from.setDate(now.getDate() - 7);
-    else from.setMonth(now.getMonth() - 1);
-
-    const filtered = list.filter((s) => new Date(s.createdAt) >= from);
-    if (filtered.length === 0) {
-      toast.info(lang === "ar" ? "لا توجد بيانات للتصدير في الفترة المحددة" : "No data to export for the selected period");
-      return;
-    }
-    // توليد ملف CSV بسيط (Excel-compatible)
-    const headers = [tr(lang, "customer_name"), tr(lang, "audit_record_no"), tr(lang, "status"), tr(lang, "price"), tr(lang, "paid"), tr(lang, "remaining"), tr(lang, "date")];
-    const rows = filtered.map((s) => [
-      s.customerName,
-      s.serviceNumber,
-      tr(lang, statusColors[s.status].label),
-      String(s.price),
-      String(s.paid),
-      String(s.remaining),
-      new Date(s.createdAt).toLocaleDateString("en-GB"),
-    ]);
-    const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const bom = "\uFEFF"; // دعم العربية في Excel
-    const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
+    // تنزيل ملف Excel حقيقي عبر API
+    const url = `/api/export?type=services&serviceType=${config.serviceType}&period=${period}&format=excel`;
     const a = document.createElement("a");
     a.href = url;
     a.download = `${config.serviceType}_${period}_${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
-    toast.success(lang === "ar" ? `تم تصدير ${filtered.length} سجل` : `Exported ${filtered.length} records`);
+    document.body.removeChild(a);
+    toast.success(lang === "ar" ? "تم تصدير ملف Excel" : "Excel file exported");
+  };
+
+  const exportPDF = (period: "weekly" | "monthly") => {
+    // فتح تقرير PDF في نافذة جديدة
+    const url = `/api/export?type=services&serviceType=${config.serviceType}&period=${period}&format=pdf`;
+    window.open(url, "_blank");
+    toast.success(lang === "ar" ? "تم فتح تقرير PDF" : "PDF report opened");
   };
 
   const renderField = (f: FieldDef) => {
@@ -397,6 +406,7 @@ export function ServicePage({ config }: Props) {
     }
 
     const isAutoFilledPassport = f.name === "passportNumber" && form.customerId && val;
+    const isAutoFilledCard = f.name === "cardNumber" && form.customerId && val;
     return (
       <div key={f.name} className={cn("space-y-1.5", f.span2 && "sm:col-span-2")}>
         <Label className="text-xs font-medium text-foreground">
@@ -407,7 +417,7 @@ export function ServicePage({ config }: Props) {
               ({lang === "ar" ? "محسوب تلقائياً" : "auto"})
             </span>
           )}
-          {isAutoFilledPassport && (
+          {(isAutoFilledPassport || isAutoFilledCard) && (
             <span className="text-[10px] text-emerald-600 ms-1">
               {tr(lang, "auto_filled_passport")}
             </span>
@@ -474,6 +484,17 @@ export function ServicePage({ config }: Props) {
 
   const tableFields = allFields.filter((f) => !f.hideInTable).slice(0, 6);
 
+  // تنبيه عند مغادرة النموذج بتغييرات غير محفوظة
+  const handleDialogChange = (open: boolean) => {
+    if (!open && formDirty) {
+      if (!window.confirm(lang === "ar" ? "لديك تغييرات غير محفوظة. هل تريد المغادرة؟" : "You have unsaved changes. Leave anyway?")) {
+        return;
+      }
+    }
+    setOpen(open);
+    if (!open) resetForm();
+  };
+
   return (
     <div className="space-y-5" dir={lang === "ar" ? "rtl" : "ltr"}>
       {/* تصنيف الخدمة عنوان واضح في أعلى القسم */}
@@ -485,7 +506,7 @@ export function ServicePage({ config }: Props) {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* تصدير Excel أسبوعي وشهري */}
+          {/* تصدير Excel أسبوعي/شهري */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="bg-background gap-2">
@@ -500,6 +521,26 @@ export function ServicePage({ config }: Props) {
                 {tr(lang, "export_weekly")}
               </DropdownMenuItem>
               <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExcel("monthly")}>
+                <Calendar className="w-4 h-4" />
+                {tr(lang, "export_monthly")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {/* تصدير PDF أسبوعي/شهري */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="bg-background gap-2">
+                <FileText className="w-4 h-4" />
+                {tr(lang, "export_pdf")}
+                <ChevronDown className="w-3 h-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align={lang === "ar" ? "start" : "end"}>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportPDF("weekly")}>
+                <Calendar className="w-4 h-4" />
+                {tr(lang, "export_weekly")}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportPDF("monthly")}>
                 <Calendar className="w-4 h-4" />
                 {tr(lang, "export_monthly")}
               </DropdownMenuItem>
@@ -618,14 +659,19 @@ export function ServicePage({ config }: Props) {
                           <Badge variant="secondary" className="text-[11px] font-medium gap-1" style={{ background: sc.bg, color: sc.fg }}>
                             {tr(lang, sc.label)}
                           </Badge>
+                          {s.cancelReason && (
+                            <div className="text-[10px] text-destructive mt-1 max-w-[150px] truncate" title={s.cancelReason}>
+                              {s.cancelReason}
+                            </div>
+                          )}
                         </TableCell>
-                        {/* ترتيب الإجراءات: معاينة ← حذف ← تعديل ← طباعة */}
                         <TableCell className="text-end">
+                          {/* ترتيب الإجراءات: معاينة ← حذف ← تعديل ← طباعة */}
                           <div className="flex items-center justify-end gap-1">
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={tr(lang, "action_preview")} onClick={() => setViewRecord(s)}>
                               <Eye className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title={tr(lang, "action_delete")} onClick={() => setDeleteId(s.id)}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title={tr(lang, "action_delete")} onClick={() => { setCancelId(s.id); setCancelReason(""); }}>
                               <Trash2 className="w-4 h-4" />
                             </Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={tr(lang, "action_edit")} onClick={() => openEdit(s)}>
@@ -646,8 +692,8 @@ export function ServicePage({ config }: Props) {
         </CardContent>
       </Card>
 
-      {/* Create/Edit dialog */}
-      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
+      {/* Create/Edit dialog — مع تحذير مغادرة بتغييرات غير محفوظة */}
+      <Dialog open={open} onOpenChange={handleDialogChange}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">
@@ -658,7 +704,7 @@ export function ServicePage({ config }: Props) {
             {allFields.map(renderField)}
           </div>
           <DialogFooter className="gap-2 sm:gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>{tr(lang, "cancel")}</Button>
+            <Button variant="outline" onClick={() => handleDialogChange(false)}>{tr(lang, "cancel")}</Button>
             <Button onClick={save} disabled={saving} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
               {tr(lang, "save")}
@@ -715,9 +761,7 @@ export function ServicePage({ config }: Props) {
               </div>
             </div>
             <div className="border-t border-border pt-3">
-              <h4 className="text-sm font-semibold mb-2">
-                {lang === "ar" ? "التفاصيل" : "Details"}
-              </h4>
+              <h4 className="text-sm font-semibold mb-2">{lang === "ar" ? "التفاصيل" : "Details"}</h4>
               <div className="grid grid-cols-2 gap-2">
                 {viewRecord &&
                   Object.entries(viewRecord.details).map(([k, v]) => {
@@ -737,6 +781,17 @@ export function ServicePage({ config }: Props) {
                   })}
               </div>
             </div>
+            {viewRecord?.cancelReason && (
+              <div className="border-t border-border pt-3 p-3 rounded-lg bg-destructive/5">
+                <p className="text-xs text-destructive font-medium mb-1">{lang === "ar" ? "سبب الإلغاء" : "Cancel Reason"}</p>
+                <p className="text-sm text-foreground">{viewRecord.cancelReason}</p>
+                {viewRecord.cancelledAt && (
+                  <p className="text-[11px] text-muted-foreground mt-1 num">
+                    {viewRecord.cancelledBy} — {new Date(viewRecord.cancelledAt).toLocaleString("en-GB")}
+                  </p>
+                )}
+              </div>
+            )}
             {viewRecord?.notes && (
               <div className="border-t border-border pt-3">
                 <h4 className="text-sm font-semibold mb-1">{tr(lang, "f_office_notes")}</h4>
@@ -754,20 +809,29 @@ export function ServicePage({ config }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirm */}
-      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
+      {/* Cancel dialog — سبب إلغاء إلزامي */}
+      <AlertDialog open={!!cancelId} onOpenChange={(o) => { if (!o) { setCancelId(null); setCancelReason(""); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{tr(lang, "action_delete")}</AlertDialogTitle>
+            <AlertDialogTitle>{lang === "ar" ? "إلغاء المعاملة" : "Cancel Transaction"}</AlertDialogTitle>
             <AlertDialogDescription>
-              {tr(lang, "confirm_delete_service")}
+              {lang === "ar" ? "سيتم تغيير حالة المعاملة إلى «ملغية» بدلاً من حذفها نهائياً. أدخل سبب الإلغاء (إلزامي)." : "The transaction will be marked as cancelled instead of deleted. Enter a cancel reason (required)."}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="py-2">
+            <Textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              className="bg-background min-h-[80px]"
+              placeholder={lang === "ar" ? "أدخل سبب الإلغاء..." : "Enter cancel reason..."}
+            />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>{tr(lang, "cancel")}</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmDelete}
+              onClick={confirmCancel}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={!cancelReason.trim()}
             >
               {tr(lang, "action_delete")}
             </AlertDialogAction>

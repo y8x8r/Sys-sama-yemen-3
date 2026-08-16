@@ -315,3 +315,23 @@
   color: var(--muted-foreground);
   background-color: var(--background);
 }
+
+/* Print styles — إخفاء عناصر الواجهة عند الطباعة */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print\:hidden,
+  .print\:hidden * {
+    display: none !important;
+  }
+  .print:block,
+  .print:block * {
+    visibility: visible;
+  }
+  .print:block {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
+}

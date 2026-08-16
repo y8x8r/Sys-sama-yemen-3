@@ -1,7 +1,6 @@
 "use client";
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import type {
   Customer,
   Employee,
@@ -20,27 +19,173 @@ import type {
   Notification,
   PermissionLevel,
   UserPermission,
+  Policy,
 } from "./types";
-import {
-  customers as seedCustomers,
-  employees as seedEmployees,
-  users as seedUsers,
-  agents as seedAgents,
-  transportCompanies as seedCompanies,
-  services as seedServices,
-  invoices as seedInvoices,
-  payments as seedPayments,
-  expenses as seedExpenses,
-  auditLogs as seedAuditLogs,
-  visaExpiryRecords as seedVisaExpiry,
-  notifications as seedNotifications,
-  computeVisaExpiry,
-} from "./mock-data";
+
+/** تنسيق التواريخ من ISO إلى كائن */
+function parseDate(iso: string): Date {
+  return new Date(iso);
+}
+
+/** تنسيق سجل عميل من API */
+function parseCustomer(c: any): Customer {
+  return {
+    id: c.id,
+    customerNumber: c.customerNumber,
+    fullName: c.fullName,
+    phoneNumber: c.phoneNumber,
+    passportNumber: c.passportNumber,
+    nationalId: c.nationalId,
+    cardNumber: c.cardNumber,
+    joinedOn: c.joinedOn,
+    referralSource: c.referralSource,
+    isActive: c.isActive,
+    createdAt: c.createdAt,
+  };
+}
+
+function parseService(s: any): ServiceRecord {
+  return {
+    id: s.id,
+    serviceType: s.serviceType,
+    serviceNumber: s.serviceNumber,
+    customerId: s.customerId,
+    customerName: s.customerName,
+    handledByEmployeeId: s.handledByEmployeeId,
+    status: s.status,
+    price: s.price,
+    paid: s.paid,
+    remaining: s.remaining,
+    currency: s.currency,
+    paymentMethod: s.paymentMethod,
+    transferNo: s.transferNo,
+    notes: s.notes,
+    cancelReason: s.cancelReason,
+    cancelledAt: s.cancelledAt,
+    cancelledBy: s.cancelledBy,
+    details: s.details,
+    createdAt: s.createdAt,
+  };
+}
+
+function parseInvoice(i: any): Invoice {
+  return {
+    id: i.id,
+    invoiceNumber: i.invoiceNumber,
+    customerId: i.customerId,
+    customerName: i.customerName,
+    serviceId: i.serviceId,
+    serviceType: i.serviceType,
+    serviceNumber: i.serviceNumber,
+    totalAmount: i.totalAmount,
+    paidAmount: i.paidAmount,
+    remainingAmount: i.remainingAmount,
+    currency: i.currency,
+    status: i.status,
+    issuedAt: i.issuedAt,
+    createdAt: i.createdAt,
+  };
+}
+
+function parsePayment(p: any): Payment {
+  return {
+    id: p.id,
+    paymentNumber: p.paymentNumber,
+    customerId: p.customerId,
+    customerName: p.customerName,
+    invoiceId: p.invoiceId,
+    invoiceNumber: p.invoiceNumber,
+    serviceId: p.serviceId,
+    serviceNumber: p.serviceNumber,
+    amount: p.amount,
+    currency: p.currency,
+    method: p.method,
+    transferNo: p.transferNo,
+    status: p.status,
+    receivedAt: p.receivedAt,
+    createdAt: p.createdAt,
+  };
+}
+
+function parseExpense(e: any): Expense {
+  return {
+    id: e.id,
+    expenseNumber: e.expenseNumber,
+    category: e.category,
+    description: e.description,
+    beneficiary: e.beneficiary,
+    amount: e.amount,
+    currency: e.currency,
+    method: e.method,
+    reference: e.reference,
+    status: e.status,
+    paidAt: e.paidAt,
+    createdAt: e.createdAt,
+    createdBy: e.createdBy,
+  };
+}
+
+function parseNotification(n: any): Notification {
+  return {
+    id: n.id,
+    title: n.title,
+    body: n.body,
+    type: n.type,
+    moduleKey: n.moduleKey,
+    relatedEntityId: n.relatedEntityId,
+    isRead: n.isRead,
+    createdAt: n.createdAt,
+  };
+}
+
+function parseAuditLog(l: any): AuditLog {
+  return {
+    id: l.id,
+    occurredAt: l.occurredAt,
+    actorUsername: l.actorUsername,
+    actorRole: l.actorRole,
+    action: l.action,
+    moduleKey: l.moduleKey,
+    entityType: l.entityType,
+    entityId: l.entityId,
+    summary: l.summary,
+  };
+}
+
+interface DashboardStats {
+  activeTransactions: number;
+  todayRevenueByCurrency: Record<string, number>;
+  todayExpensesByCurrency: Record<string, number>;
+  unpaidInvoices: number;
+  statusCounts: { pending: number; processing: number; completed: number; cancelled: number };
+  totalCustomers: number;
+  totalServices: number;
+  totalInvoices: number;
+  serviceDistribution: Array<{ serviceType: string; count: number }>;
+  recentCustomers: Array<{
+    id: string;
+    customerNumber: string;
+    fullName: string;
+    phoneNumber: string;
+    lastServiceType: string | null;
+    lastServiceNumber: string | null;
+  }>;
+  chartData: Array<{
+    day: string;
+    sar_revenue: number;
+    sar_expenses: number;
+    usd_revenue: number;
+    usd_expenses: number;
+    yer_revenue: number;
+    yer_expenses: number;
+  }>;
+}
 
 interface AppState {
   // Auth
   isAuthed: boolean;
   currentUser: User | null;
+  authLoading: boolean;
   // i18n & theme
   lang: Lang;
   theme: Theme;
@@ -61,648 +206,599 @@ interface AppState {
   auditLogs: AuditLog[];
   visaExpiry: VisaExpiryRecord[];
   notifications: Notification[];
-  // Counters
-  seqService: number;
-  seqInvoice: number;
-  seqCustomer: number;
-  seqEmployee: number;
-  seqPayment: number;
-  seqExpense: number;
+  policies: Policy[];
+  dashboardStats: DashboardStats | null;
+  // Loading states
+  dataLoading: boolean;
   // Actions — Auth
-  login: (username: string, password: string) => boolean;
-  logout: () => void;
-  changePassword: (oldPwd: string, newPwd: string) => boolean;
+  login: (username: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+  checkSession: () => Promise<void>;
+  changePassword: (oldPwd: string, newPwd: string) => Promise<boolean>;
+  forgotPassword: (step: string, data: any) => Promise<{ ok: boolean; error?: string; resetToken?: string }>;
   // Actions — Settings
   setLang: (l: Lang) => void;
   setTheme: (t: Theme) => void;
   toggleTheme: () => void;
   setPage: (p: NavPage) => void;
   toggleSection: (s: string) => void;
+  // Actions — Data loading
+  fetchAllData: () => Promise<void>;
+  fetchDashboardStats: () => Promise<void>;
   // Actions — Notifications
-  markNotificationRead: (id: string) => void;
-  markAllNotificationsRead: () => void;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
   // Actions — Customers
-  addCustomer: (c: Omit<Customer, "id" | "customerNumber" | "createdAt" | "isActive">) => Customer;
-  updateCustomer: (id: string, c: Partial<Customer>) => void;
-  deleteCustomer: (id: string) => void;
-  // Actions — Employees & Users
-  addEmployee: (e: { fullName: string; username: string; role: User["role"]; password: string }) => { ok: boolean; error?: string };
-  updateEmployee: (id: string, e: Partial<Employee>) => void;
-  deleteEmployee: (id: string) => void;
-  setUserPermission: (userId: string, moduleKey: string, level: PermissionLevel) => void;
-  toggleUserActive: (userId: string) => void;
+  addCustomer: (c: Omit<Customer, "id" | "customerNumber" | "createdAt" | "isActive">) => Promise<Customer | null>;
+  updateCustomer: (id: string, c: Partial<Customer>) => Promise<void>;
+  deleteCustomer: (id: string) => Promise<void>;
+  // Actions — Employees
+  addEmployee: (e: { fullName: string; username: string; role: User["role"]; password: string }) => Promise<{ ok: boolean; error?: string }>;
+  deleteEmployee: (id: string) => Promise<void>;
   // Actions — Agents & Companies
-  addAgent: (a: Omit<Agent, "id" | "createdAt" | "isActive">) => Agent;
-  updateAgent: (id: string, a: Partial<Agent>) => void;
-  deleteAgent: (id: string) => void;
-  addTransportCompany: (c: Omit<TransportCompany, "id" | "createdAt" | "isActive">) => TransportCompany;
-  updateTransportCompany: (id: string, c: Partial<TransportCompany>) => void;
-  deleteTransportCompany: (id: string) => void;
+  addAgent: (a: Omit<Agent, "id" | "createdAt" | "isActive">) => Promise<void>;
+  updateAgent: (id: string, a: Partial<Agent>) => Promise<void>;
+  deleteAgent: (id: string) => Promise<void>;
+  addTransportCompany: (c: Omit<TransportCompany, "id" | "createdAt" | "isActive">) => Promise<void>;
+  updateTransportCompany: (id: string, c: Partial<TransportCompany>) => Promise<void>;
+  deleteTransportCompany: (id: string) => Promise<void>;
   // Actions — Services
-  addService: (s: Omit<ServiceRecord, "id" | "serviceNumber" | "createdAt" | "remaining">) => ServiceRecord;
-  updateService: (id: string, s: Partial<ServiceRecord>) => void;
-  deleteService: (id: string) => void;
+  addService: (s: Omit<ServiceRecord, "id" | "serviceNumber" | "createdAt" | "remaining">) => Promise<ServiceRecord | null>;
+  updateService: (id: string, s: Partial<ServiceRecord>) => Promise<void>;
+  cancelService: (id: string, reason: string) => Promise<void>;
   // Actions — Invoices
-  updateInvoice: (id: string, i: Partial<Invoice>) => void;
-  deleteInvoice: (id: string) => void;
+  updateInvoice: (id: string, i: Partial<Invoice>) => Promise<void>;
+  deleteInvoice: (id: string) => Promise<void>;
   // Actions — Expenses
-  addExpense: (e: { purpose: string; paidAt: string; amount: number; currency: Expense["currency"] }) => Expense;
-  // Audit
-  logAudit: (action: string, moduleKey: string, summary: string, entityType?: string, entityId?: string) => void;
+  addExpense: (e: { purpose: string; paidAt: string; amount: number; currency: Expense["currency"] }) => Promise<void>;
+  // Actions — Policies
+  addPolicy: (p: { title: string; description: string; category?: string }) => Promise<void>;
+  updatePolicy: (id: string, p: Partial<Policy>) => Promise<void>;
+  deletePolicy: (id: string) => Promise<void>;
 }
 
-function internalLogAudit(
-  state: AppState,
-  action: string,
-  moduleKey: string,
-  summary: string,
-  entityType: string = "",
-  entityId?: string
-): AuditLog[] {
-  const u = state.currentUser;
-  if (!u) return state.auditLogs;
-  return [
-    {
-      id: `al_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      occurredAt: new Date().toISOString(),
-      actorUsername: u.username,
-      actorRole: u.role,
-      action,
-      moduleKey,
-      entityType,
-      entityId,
-      summary,
-    },
-    ...state.auditLogs,
-  ];
-}
+export const useAppStore = create<AppState>()((set, get) => ({
+  isAuthed: false,
+  currentUser: null,
+  authLoading: true,
+  lang: "ar",
+  theme: "light",
+  currentPage: "dashboard",
+  expandedSections: { services: false, management: false, finance: false, monitoring: false, settings: false },
+  customers: [],
+  employees: [],
+  users: [],
+  userPermissions: [],
+  agents: [],
+  transportCompanies: [],
+  services: [],
+  invoices: [],
+  payments: [],
+  expenses: [],
+  auditLogs: [],
+  visaExpiry: [],
+  notifications: [],
+  policies: [],
+  dashboardStats: null,
+  dataLoading: false,
 
-export const useAppStore = create<AppState>()(
-  persist(
-    (set, get) => ({
+  login: async (username, password) => {
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        set({ isAuthed: true, currentUser: data.user, currentPage: "dashboard" });
+        await get().fetchAllData();
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  },
+
+  logout: async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {}
+    set({
       isAuthed: false,
       currentUser: null,
-      lang: "ar",
-      theme: "light",
       currentPage: "dashboard",
-      expandedSections: { services: false, management: false, finance: false, monitoring: false, settings: false },
-      customers: seedCustomers,
-      employees: seedEmployees,
-      users: seedUsers,
-      userPermissions: [],
-      agents: seedAgents,
-      transportCompanies: seedCompanies,
-      services: seedServices,
-      invoices: seedInvoices,
-      payments: seedPayments,
-      expenses: seedExpenses,
-      auditLogs: seedAuditLogs,
-      visaExpiry: seedVisaExpiry,
-      notifications: seedNotifications,
-      seqService: 1,
-      seqInvoice: 1,
-      seqCustomer: 1,
-      seqEmployee: 1,
-      seqPayment: 1,
-      seqExpense: 1,
+      customers: [],
+      services: [],
+      invoices: [],
+      payments: [],
+      expenses: [],
+      auditLogs: [],
+      notifications: [],
+      dashboardStats: null,
+    });
+  },
 
-      login: (username, password) => {
-        const u = get().users.find(
-          (x) => x.username.toLowerCase() === username.trim().toLowerCase() && x.isActive
-        );
-        // التحقق من كلمة المرور (في الإنتاج: Argon2 verify)
-        if (u && u.passwordHash === password && password.length >= 3) {
-          const updatedUser = { ...u, lastLoginAt: new Date().toISOString() };
-          set({
-            isAuthed: true,
-            currentUser: updatedUser,
-            currentPage: "dashboard",
-            users: get().users.map((x) => (x.id === u.id ? updatedUser : x)),
-            auditLogs: internalLogAudit(
-              get(),
-              "تسجيل دخول",
-              "auth",
-              "تسجيل دخول ناجح",
-              "user",
-              u.id
-            ),
-          });
-          return true;
-        }
-        return false;
-      },
+  checkSession: async () => {
+    try {
+      const res = await fetch("/api/auth/login");
+      const data = await res.json();
+      if (data.ok && data.user) {
+        set({ isAuthed: true, currentUser: data.user, authLoading: false });
+        await get().fetchAllData();
+      } else {
+        set({ isAuthed: false, currentUser: null, authLoading: false });
+      }
+    } catch {
+      set({ isAuthed: false, currentUser: null, authLoading: false });
+    }
+  },
 
-      logout: () => {
-        const u = get().currentUser;
-        if (u) {
-          set({
-            auditLogs: internalLogAudit(
-              get(),
-              "تسجيل خروج",
-              "auth",
-              "تسجيل خروج",
-              "user",
-              u.id
-            ),
-          });
-        }
-        set({ isAuthed: false, currentUser: null, currentPage: "dashboard" });
-      },
+  changePassword: async (oldPwd, newPwd) => {
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: oldPwd, newPassword: newPwd }),
+      });
+      const data = await res.json();
+      return data.ok;
+    } catch {
+      return false;
+    }
+  },
 
-      changePassword: (oldPwd, newPwd) => {
-        const u = get().currentUser;
-        if (!u) return false;
-        if (u.passwordHash !== oldPwd) return false;
-        if (newPwd.length < 4) return false;
-        const updated = { ...u, passwordHash: newPwd, mustChangePassword: false };
-        set((s) => ({
-          currentUser: updated,
-          users: s.users.map((x) => (x.id === u.id ? updated : x)),
-          auditLogs: internalLogAudit(
-            { ...s, currentUser: updated },
-            "تغيير كلمة المرور",
-            "auth",
-            "تغيير كلمة المرور",
-            "user",
-            u.id
-          ),
-        }));
-        return true;
-      },
+  forgotPassword: async (step, data) => {
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ step, ...data }),
+      });
+      const result = await res.json();
+      if (result.ok) {
+        return { ok: true, resetToken: result.resetToken };
+      }
+      return { ok: false, error: result.error };
+    } catch (e) {
+      return { ok: false, error: "server_error" };
+    }
+  },
 
-      setLang: (l) => set({ lang: l }),
-      setTheme: (t) => set({ theme: t }),
-      toggleTheme: () => set((s) => ({ theme: s.theme === "light" ? "dark" : "light" })),
-      setPage: (p) => set({ currentPage: p }),
-      toggleSection: (s) =>
-        set((st) => ({
-          expandedSections: { ...st.expandedSections, [s]: !st.expandedSections[s] },
-        })),
+  setLang: (l) => set({ lang: l }),
+  setTheme: (t) => set({ theme: t }),
+  toggleTheme: () => set((s) => ({ theme: s.theme === "light" ? "dark" : "light" })),
+  setPage: (p) => set({ currentPage: p }),
+  toggleSection: (s) =>
+    set((st) => ({
+      expandedSections: { ...st.expandedSections, [s]: !st.expandedSections[s] },
+    })),
 
-      markNotificationRead: (id) =>
-        set((s) => ({
-          notifications: s.notifications.map((n) =>
-            n.id === id ? { ...n, isRead: true } : n
-          ),
-        })),
+  fetchAllData: async () => {
+    set({ dataLoading: true });
+    try {
+      const [customersRes, servicesRes, invoicesRes, paymentsRes, expensesRes, employeesRes, agentsRes, companiesRes, auditRes, notifRes, policiesRes, statsRes] = await Promise.all([
+        fetch("/api/customers"),
+        fetch("/api/services"),
+        fetch("/api/invoices"),
+        fetch("/api/payments"),
+        fetch("/api/expenses"),
+        fetch("/api/employees"),
+        fetch("/api/agents"),
+        fetch("/api/companies"),
+        fetch("/api/audit"),
+        fetch("/api/notifications"),
+        fetch("/api/policies"),
+        fetch("/api/stats"),
+      ]);
 
-      markAllNotificationsRead: () =>
-        set((s) => ({
-          notifications: s.notifications.map((n) => ({ ...n, isRead: true })),
-        })),
+      const [customers, services, invoices, payments, expenses, employees, agents, companies, audit, notif, policies, stats] = await Promise.all([
+        customersRes.json(),
+        servicesRes.json(),
+        invoicesRes.json(),
+        paymentsRes.json(),
+        expensesRes.json(),
+        employeesRes.json(),
+        agentsRes.json(),
+        companiesRes.json(),
+        auditRes.json(),
+        notifRes.json(),
+        policiesRes.json(),
+        statsRes.json(),
+      ]);
 
-      addCustomer: (c) => {
-        const seq = get().seqCustomer;
-        const newC: Customer = {
-          id: `c_${Date.now()}`,
-          customerNumber: `CUST-${String(seq).padStart(5, "0")}`,
-          joinedOn: new Date().toISOString().split("T")[0],
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          ...c,
-        };
-        set((s) => ({
-          customers: [newC, ...s.customers],
-          seqCustomer: seq + 1,
-          auditLogs: internalLogAudit(
-            { ...s, customers: [newC, ...s.customers] },
-            "إضافة عميل",
-            "customers",
-            `إضافة عميل جديد: ${newC.fullName} (${newC.customerNumber})`,
-            "customer",
-            newC.id
-          ),
-        }));
-        return newC;
-      },
-
-      updateCustomer: (id, patch) =>
-        set((s) => {
-          const updated = s.customers.map((c) =>
-            c.id === id ? { ...c, ...patch } : c
-          );
-          const target = s.customers.find((c) => c.id === id);
-          return {
-            customers: updated,
-            auditLogs: internalLogAudit(
-              { ...s, customers: updated },
-              "تعديل عميل",
-              "customers",
-              `تعديل بيانات العميل: ${target?.fullName ?? id}`,
-              "customer",
-              id
-            ),
-          };
-        }),
-
-      deleteCustomer: (id) =>
-        set((s) => {
-          const target = s.customers.find((c) => c.id === id);
-          return {
-            customers: s.customers.filter((c) => c.id !== id),
-            auditLogs: internalLogAudit(
-              { ...s },
-              "حذف عميل",
-              "customers",
-              `حذف العميل: ${target?.fullName ?? id} (مع الحفاظ على السجل التاريخي للمعاملات)`,
-              "customer",
-              id
-            ),
-          };
-        }),
-
-      addEmployee: ({ fullName, username, role, password }) => {
-        // التحقق من عدم تكرار اسم المستخدم
-        const exists = get().users.find(
-          (u) => u.username.toLowerCase() === username.trim().toLowerCase()
-        );
-        if (exists) {
-          return { ok: false, error: "اسم المستخدم موجود مسبقاً" };
-        }
-        if (password.length < 4) {
-          return { ok: false, error: "كلمة المرور يجب أن تكون 4 أحرف على الأقل" };
-        }
-        const seqEmp = get().seqEmployee;
-        const newEmp: Employee = {
-          id: `e_${Date.now()}`,
-          employeeNumber: `EMP-${String(seqEmp).padStart(4, "0")}`,
-          fullName,
-          hiredOn: new Date().toISOString().split("T")[0],
-          jobTitle:
-            role === "manager"
-              ? "مدير عام"
-              : role === "accountant"
-              ? "محاسب"
-              : "مسؤول حجوزات",
-          isActive: true,
-          createdAt: new Date().toISOString(),
-        };
-        const newUser: User = {
-          id: `u_${Date.now()}`,
-          username: username.trim(),
-          passwordHash: password,
-          role,
-          employeeId: newEmp.id,
-          isActive: true,
-          mustChangePassword: false,
-          createdAt: new Date().toISOString(),
-        };
-        set((s) => ({
-          employees: [newEmp, ...s.employees],
-          users: [newUser, ...s.users],
-          seqEmployee: seqEmp + 1,
-          auditLogs: internalLogAudit(
-            { ...s, employees: [newEmp, ...s.employees], users: [newUser, ...s.users] },
-            "إنشاء حساب موظف",
-            "users",
-            `إنشاء حساب للموظف ${fullName} (${newEmp.employeeNumber}) بدور: ${newEmp.jobTitle}`,
-            "user",
-            newUser.id
-          ),
-        }));
-        return { ok: true };
-      },
-
-      updateEmployee: (id, patch) =>
-        set((s) => ({
-          employees: s.employees.map((e) =>
-            e.id === id ? { ...e, ...patch } : e
-          ),
-          auditLogs: internalLogAudit(
-            s,
-            "تعديل موظف",
-            "users",
-            `تعديل بيانات الموظف: ${s.employees.find((e) => e.id === id)?.fullName ?? id}`,
-            "employee",
-            id
-          ),
-        })),
-
-      deleteEmployee: (id) =>
-        set((s) => {
-          const emp = s.employees.find((e) => e.id === id);
-          const linkedUser = s.users.find((u) => u.employeeId === id);
-          return {
-            employees: s.employees.filter((e) => e.id !== id),
-            users: s.users.filter((u) => u.employeeId !== id),
-            auditLogs: internalLogAudit(
-              s,
-              "حذف موظف",
-              "users",
-              `حذف الموظف: ${emp?.fullName ?? id} (مع الحفاظ على السجل التاريخي)`,
-              "employee",
-              id
-            ),
-          };
-        }),
-
-      setUserPermission: (userId, moduleKey, level) =>
-        set((s) => {
-          const existing = s.userPermissions.findIndex(
-            (p) => p.userId === userId && p.moduleKey === moduleKey
-          );
-          let perms = [...s.userPermissions];
-          if (existing >= 0) {
-            perms[existing] = { userId, moduleKey, level };
-          } else {
-            perms.push({ userId, moduleKey, level });
+      // حساب تأشيرات قاربت الانتهاء (85 يوم من تاريخ الدخول للعمرة العادية)
+      const visaExpiry: VisaExpiryRecord[] = [];
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      for (const s of (services.services || []) as ServiceRecord[]) {
+        if (s.serviceType === "umrah_regular" && s.details?.entryDate) {
+          const entry = new Date(s.details.entryDate as string);
+          const expiry = new Date(entry);
+          expiry.setDate(expiry.getDate() + 85);
+          const diff = Math.floor((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          if (diff <= 30) {
+            const status = diff < 0 ? "expired" : diff <= 7 ? "urgent" : "near";
+            const customer = (customers.customers || []).find((c: Customer) => c.id === s.customerId);
+            visaExpiry.push({
+              id: `ve_${s.id}`,
+              serviceId: s.id,
+              serviceNumber: s.serviceNumber,
+              serviceType: s.serviceType,
+              customerId: s.customerId,
+              customerName: s.customerName,
+              phone: customer?.phoneNumber,
+              entryDate: s.details.entryDate as string,
+              expiryDate: expiry.toISOString().split("T")[0],
+              daysRemaining: diff,
+              visaKind: "عمرة عادية",
+              status,
+            });
           }
-          const target = s.users.find((u) => u.id === userId);
-          return {
-            userPermissions: perms,
-            auditLogs: internalLogAudit(
-              { ...s, userPermissions: perms },
-              "تعديل صلاحية",
-              "permissions",
-              `تعديل صلاحية المستخدم ${target?.username ?? userId} على وحدة ${moduleKey} → ${level}`,
-              "permission",
-              userId
-            ),
-          };
-        }),
+        }
+      }
+      visaExpiry.sort((a, b) => a.daysRemaining - b.daysRemaining);
 
-      toggleUserActive: (userId) =>
-        set((s) => {
-          const target = s.users.find((u) => u.id === userId);
-          if (!target) return s;
-          const updated = { ...target, isActive: !target.isActive };
-          return {
-            users: s.users.map((u) => (u.id === userId ? updated : u)),
-            auditLogs: internalLogAudit(
-              s,
-              updated.isActive ? "تفعيل حساب" : "تعطيل حساب",
-              "users",
-              `${updated.isActive ? "تفعيل" : "تعطيل"} حساب ${updated.username}`,
-              "user",
-              userId
-            ),
-          };
-        }),
+      set({
+        customers: (customers.customers || []).map(parseCustomer),
+        services: (services.services || []).map(parseService),
+        invoices: (invoices.invoices || []).map(parseInvoice),
+        payments: (payments.payments || []).map(parsePayment),
+        expenses: (expenses.expenses || []).map(parseExpense),
+        employees: (employees.employees || []),
+        users: (employees.users || []),
+        agents: (agents.agents || []),
+        transportCompanies: (companies.companies || []),
+        auditLogs: (audit.auditLogs || []).map(parseAuditLog),
+        notifications: (notif.notifications || []).map(parseNotification),
+        policies: (policies.policies || []),
+        dashboardStats: stats.stats ?? null,
+        visaExpiry,
+        dataLoading: false,
+      });
+    } catch (e) {
+      console.error("Fetch all data error:", e);
+      set({ dataLoading: false });
+    }
+  },
 
-      addAgent: (a) => {
-        const newA: Agent = {
-          id: `a_${Date.now()}`,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          ...a,
-        };
-        set((s) => ({
-          agents: [newA, ...s.agents],
-          auditLogs: internalLogAudit(
-            { ...s, agents: [newA, ...s.agents] },
-            "إضافة وكيل",
-            "agents",
-            `إضافة وكيل: ${newA.officeName}`,
-            "agent",
-            newA.id
-          ),
-        }));
-        return newA;
-      },
+  fetchDashboardStats: async () => {
+    try {
+      const res = await fetch("/api/stats");
+      const data = await res.json();
+      if (data.ok) {
+        set({ dashboardStats: data.stats });
+      }
+    } catch {}
+  },
 
-      updateAgent: (id, patch) =>
-        set((s) => ({
-          agents: s.agents.map((a) => (a.id === id ? { ...a, ...patch } : a)),
-          auditLogs: internalLogAudit(
-            s,
-            "تعديل وكيل",
-            "agents",
-            `تعديل الوكيل: ${s.agents.find((a) => a.id === id)?.officeName ?? id}`,
-            "agent",
-            id
-          ),
-        })),
+  markNotificationRead: async (id) => {
+    await fetch("/api/notifications", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    set((s) => ({
+      notifications: s.notifications.map((n) =>
+        n.id === id ? { ...n, isRead: true } : n
+      ),
+    }));
+  },
 
-      deleteAgent: (id) =>
-        set((s) => ({
-          agents: s.agents.filter((a) => a.id !== id),
-          auditLogs: internalLogAudit(
-            s,
-            "حذف وكيل",
-            "agents",
-            `حذف الوكيل: ${s.agents.find((a) => a.id === id)?.officeName ?? id}`,
-            "agent",
-            id
-          ),
-        })),
+  markAllNotificationsRead: async () => {
+    await fetch("/api/notifications", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ markAll: true }),
+    });
+    set((s) => ({
+      notifications: s.notifications.map((n) => ({ ...n, isRead: true })),
+    }));
+  },
 
-      addTransportCompany: (c) => {
-        const newC: TransportCompany = {
-          id: `tc_${Date.now()}`,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          ...c,
-        };
-        set((s) => ({
-          transportCompanies: [newC, ...s.transportCompanies],
-          auditLogs: internalLogAudit(
-            { ...s, transportCompanies: [newC, ...s.transportCompanies] },
-            "إضافة شركة نقل",
-            "companies",
-            `إضافة شركة نقل: ${newC.companyName}`,
-            "company",
-            newC.id
-          ),
-        }));
+  addCustomer: async (c) => {
+    try {
+      const res = await fetch("/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(c),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        const newC = parseCustomer(data.customer);
+        set((s) => ({ customers: [newC, ...s.customers] }));
         return newC;
-      },
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  },
 
-      updateTransportCompany: (id, patch) =>
+  updateCustomer: async (id, patch) => {
+    try {
+      const res = await fetch(`/api/customers/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        const updated = parseCustomer(data.customer);
+        set((s) => ({
+          customers: s.customers.map((c) => (c.id === id ? updated : c)),
+        }));
+      }
+    } catch {}
+  },
+
+  deleteCustomer: async (id) => {
+    try {
+      await fetch(`/api/customers/${id}`, { method: "DELETE" });
+      set((s) => ({
+        customers: s.customers.filter((c) => c.id !== id),
+      }));
+    } catch {}
+  },
+
+  addEmployee: async (e) => {
+    try {
+      const res = await fetch("/api/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(e),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        await get().fetchAllData();
+        return { ok: true };
+      }
+      return { ok: false, error: data.error };
+    } catch (err) {
+      return { ok: false, error: "server_error" };
+    }
+  },
+
+  deleteEmployee: async (id) => {
+    try {
+      await fetch(`/api/employees/${id}`, { method: "DELETE" });
+      await get().fetchAllData();
+    } catch {}
+  },
+
+  addAgent: async (a) => {
+    try {
+      const res = await fetch("/api/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(a),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        const newA: Agent = {
+          id: data.agent.id,
+          officeName: data.agent.officeName,
+          agentNumber: data.agent.agentNumber,
+          serviceType: data.agent.serviceType,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+        };
+        set((s) => ({ agents: [newA, ...s.agents] }));
+      }
+    } catch {}
+  },
+
+  updateAgent: async (id, patch) => {
+    try {
+      const res = await fetch(`/api/agents/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        set((s) => ({
+          agents: s.agents.map((a) =>
+            a.id === id ? { ...a, ...patch } : a
+          ),
+        }));
+      }
+    } catch {}
+  },
+
+  deleteAgent: async (id) => {
+    try {
+      await fetch(`/api/agents/${id}`, { method: "DELETE" });
+      set((s) => ({ agents: s.agents.filter((a) => a.id !== id) }));
+    } catch {}
+  },
+
+  addTransportCompany: async (c) => {
+    try {
+      const res = await fetch("/api/companies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(c),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        const newC: TransportCompany = {
+          id: data.company.id,
+          companyName: data.company.companyName,
+          companyNumber: data.company.companyNumber,
+          address: data.company.address,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+        };
+        set((s) => ({ transportCompanies: [newC, ...s.transportCompanies] }));
+      }
+    } catch {}
+  },
+
+  updateTransportCompany: async (id, patch) => {
+    try {
+      const res = await fetch(`/api/companies/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (data.ok) {
         set((s) => ({
           transportCompanies: s.transportCompanies.map((c) =>
             c.id === id ? { ...c, ...patch } : c
           ),
-          auditLogs: internalLogAudit(
-            s,
-            "تعديل شركة نقل",
-            "companies",
-            `تعديل شركة النقل: ${s.transportCompanies.find((c) => c.id === id)?.companyName ?? id}`,
-            "company",
-            id
-          ),
-        })),
-
-      deleteTransportCompany: (id) =>
-        set((s) => ({
-          transportCompanies: s.transportCompanies.filter((c) => c.id !== id),
-          auditLogs: internalLogAudit(
-            s,
-            "حذف شركة نقل",
-            "companies",
-            `حذف شركة النقل: ${s.transportCompanies.find((c) => c.id === id)?.companyName ?? id}`,
-            "company",
-            id
-          ),
-        })),
-
-      addService: (s) => {
-        const seq = get().seqService;
-        const newS: ServiceRecord = {
-          ...s,
-          id: `s_${Date.now()}`,
-          serviceNumber: `SRV-${new Date().getFullYear()}-${String(seq).padStart(5, "0")}`,
-          remaining: s.price - s.paid,
-          createdAt: new Date().toISOString(),
-        };
-        // إنشاء فاتورة مرتبطة بالخدمة
-        const seqInv = get().seqInvoice;
-        const newInv: Invoice = {
-          id: `inv_${Date.now()}`,
-          invoiceNumber: `INV-${new Date().getFullYear()}-${String(seqInv).padStart(5, "0")}`,
-          customerId: s.customerId,
-          customerName: s.customerName,
-          serviceId: newS.id,
-          serviceType: s.serviceType,
-          serviceNumber: newS.serviceNumber,
-          totalAmount: s.price,
-          paidAmount: s.paid,
-          remainingAmount: s.price - s.paid,
-          currency: s.currency,
-          status: s.price - s.paid === 0 ? "paid" : s.paid > 0 ? "partial" : "issued",
-          issuedAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-        };
-        // إنشاء إشعار جديد
-        const newNotif: Notification = {
-          id: `n_${Date.now()}`,
-          title: "معاملة جديدة",
-          body: `تم إنشاء معاملة ${newS.serviceNumber} للعميل ${s.customerName}`,
-          type: "success",
-          moduleKey: "services",
-          relatedEntityId: newS.id,
-          isRead: false,
-          createdAt: new Date().toISOString(),
-        };
-        const u = get().currentUser;
-        set((st) => {
-          const newServices = [newS, ...st.services];
-          return {
-            services: newServices,
-            invoices: [newInv, ...st.invoices],
-            notifications: [newNotif, ...st.notifications],
-            seqService: seq + 1,
-            seqInvoice: seqInv + 1,
-            visaExpiry: computeVisaExpiry(newServices),
-            auditLogs: internalLogAudit(
-              { ...st, services: newServices },
-              "إنشاء معاملة",
-              "services",
-              `إنشاء معاملة جديدة ${newS.serviceNumber} للعميل ${s.customerName}`,
-              "service",
-              newS.id
-            ),
-          };
-        });
-        return newS;
-      },
-
-      updateService: (id, patch) =>
-        set((s) => {
-          const updated = s.services.map((srv) =>
-            srv.id === id ? { ...srv, ...patch } : srv
-          );
-          return {
-            services: updated,
-            visaExpiry: computeVisaExpiry(updated),
-            auditLogs: internalLogAudit(
-              { ...s, services: updated },
-              "تعديل معاملة",
-              "services",
-              `تعديل المعاملة: ${s.services.find((srv) => srv.id === id)?.serviceNumber ?? id}`,
-              "service",
-              id
-            ),
-          };
-        }),
-
-      deleteService: (id) =>
-        set((s) => {
-          const newServices = s.services.filter((srv) => srv.id !== id);
-          return {
-            services: newServices,
-            visaExpiry: computeVisaExpiry(newServices),
-            auditLogs: internalLogAudit(
-              s,
-              "حذف معاملة",
-              "services",
-              `حذف المعاملة: ${s.services.find((srv) => srv.id === id)?.serviceNumber ?? id}`,
-              "service",
-              id
-            ),
-          };
-        }),
-
-      updateInvoice: (id, patch) =>
-        set((s) => ({
-          invoices: s.invoices.map((inv) =>
-            inv.id === id ? { ...inv, ...patch } : inv
-          ),
-          auditLogs: internalLogAudit(
-            s,
-            "تعديل فاتورة",
-            "invoices",
-            `تعديل الفاتورة: ${s.invoices.find((inv) => inv.id === id)?.invoiceNumber ?? id}`,
-            "invoice",
-            id
-          ),
-        })),
-
-      deleteInvoice: (id) =>
-        set((s) => ({
-          invoices: s.invoices.filter((inv) => inv.id !== id),
-          auditLogs: internalLogAudit(
-            s,
-            "حذف فاتورة",
-            "invoices",
-            `حذف الفاتورة: ${s.invoices.find((inv) => inv.id === id)?.invoiceNumber ?? id}`,
-            "invoice",
-            id
-          ),
-        })),
-
-      addExpense: ({ purpose, paidAt, amount, currency }) => {
-        const seq = get().seqExpense;
-        const newE: Expense = {
-          id: `ex_${Date.now()}`,
-          expenseNumber: `EXP-${new Date().getFullYear()}-${String(seq).padStart(5, "0")}`,
-          category: purpose, // غرض الصرف
-          description: purpose,
-          beneficiary: "—",
-          amount,
-          currency,
-          method: "cash",
-          status: "approved",
-          paidAt,
-          createdAt: new Date().toISOString(),
-          createdBy: get().currentUser?.username ?? "—",
-        };
-        set((s) => ({
-          expenses: [newE, ...s.expenses],
-          seqExpense: seq + 1,
-          auditLogs: internalLogAudit(
-            { ...s, expenses: [newE, ...s.expenses] },
-            "إضافة مصروف",
-            "expenses",
-            `إضافة مصروف ${newE.expenseNumber} — ${purpose} (${amount} ${currency})`,
-            "expense",
-            newE.id
-          ),
         }));
-        return newE;
-      },
+      }
+    } catch {}
+  },
 
-      logAudit: (action, moduleKey, summary, entityType, entityId) =>
-        set((s) => ({
-          auditLogs: internalLogAudit(s, action, moduleKey, summary, entityType, entityId),
-        })),
-    }),
-    {
-      name: "sama-yemen-store",
-      partialize: (s) => ({
-        lang: s.lang,
-        theme: s.theme,
-        // لا يتم حفظ بيانات الـ Auth — يلزم تسجيل الدخول كل جلسة
-      }),
+  deleteTransportCompany: async (id) => {
+    try {
+      await fetch(`/api/companies/${id}`, { method: "DELETE" });
+      set((s) => ({ transportCompanies: s.transportCompanies.filter((c) => c.id !== id) }));
+    } catch {}
+  },
+
+  addService: async (s) => {
+    try {
+      const res = await fetch("/api/services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(s),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        const newS = parseService(data.service);
+        set((st) => ({ services: [newS, ...st.services] }));
+        // تحديث البيانات المرتبطة (الفواتير، المدفوعات، الإشعارات، الإحصائيات)
+        await get().fetchAllData();
+        return newS;
+      }
+      return null;
+    } catch {
+      return null;
     }
-  )
-);
+  },
+
+  updateService: async (id, patch) => {
+    try {
+      const res = await fetch(`/api/services/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        const updated = parseService(data.service);
+        set((s) => ({
+          services: s.services.map((srv) => (srv.id === id ? updated : srv)),
+        }));
+        await get().fetchAllData();
+      }
+    } catch {}
+  },
+
+  cancelService: async (id, reason) => {
+    try {
+      const res = await fetch(`/api/services/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cancelReason: reason }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        await get().fetchAllData();
+      }
+    } catch {}
+  },
+
+  updateInvoice: async (id, patch) => {
+    try {
+      const res = await fetch(`/api/invoices/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        await get().fetchAllData();
+      }
+    } catch {}
+  },
+
+  deleteInvoice: async (id) => {
+    try {
+      await fetch(`/api/invoices/${id}`, { method: "DELETE" });
+      set((s) => ({ invoices: s.invoices.filter((i) => i.id !== id) }));
+    } catch {}
+  },
+
+  addExpense: async (e) => {
+    try {
+      const res = await fetch("/api/expenses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(e),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        const newE = parseExpense(data.expense);
+        set((s) => ({ expenses: [newE, ...s.expenses] }));
+        await get().fetchDashboardStats();
+      }
+    } catch {}
+  },
+
+  addPolicy: async (p) => {
+    try {
+      const res = await fetch("/api/policies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(p),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        set((s) => ({ policies: [data.policy, ...s.policies] }));
+      }
+    } catch {}
+  },
+
+  updatePolicy: async (id, patch) => {
+    try {
+      const res = await fetch(`/api/policies/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        set((s) => ({
+          policies: s.policies.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+        }));
+      }
+    } catch {}
+  },
+
+  deletePolicy: async (id) => {
+    try {
+      await fetch(`/api/policies/${id}`, { method: "DELETE" });
+      set((s) => ({ policies: s.policies.filter((p) => p.id !== id) }));
+    } catch {}
+  },
+}));
+
+// مزامنة الثيم واللغة مع localStorage (للتفضيلات فقط، وليس للبيانات)
+if (typeof window !== "undefined") {
+  const savedLang = localStorage.getItem("sama_lang") as Lang | null;
+  const savedTheme = localStorage.getItem("sama_theme") as Theme | null;
+  if (savedLang) useAppStore.setState({ lang: savedLang });
+  if (savedTheme) useAppStore.setState({ theme: savedTheme });
+
+  // حفظ التفضيلات عند التغيير
+  useAppStore.subscribe((state) => {
+    if (state.lang) localStorage.setItem("sama_lang", state.lang);
+    if (state.theme) localStorage.setItem("sama_theme", state.theme);
+  });
+}

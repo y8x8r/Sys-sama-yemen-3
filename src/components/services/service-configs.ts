@@ -279,7 +279,6 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
       { name: "visaDuration", labelKey: "f_visa_duration", type: "text" },
       { name: "processingPeriod", labelKey: "f_processing_period", type: "text" },
       { name: "receiveDate", labelKey: "f_receive_date", type: "date" },
-      { name: "notes", labelKey: "f_office_notes", type: "textarea", span2: true },
     ],
   },
   visa_visit: {
@@ -295,7 +294,6 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
       { name: "visaDuration", labelKey: "f_visa_duration", type: "text" },
       { name: "processingPeriod", labelKey: "f_processing_period", type: "text" },
       { name: "receiveDate", labelKey: "f_receive_date", type: "date" },
-      { name: "notes", labelKey: "f_office_notes", type: "textarea", span2: true },
     ],
   },
 
@@ -318,7 +316,6 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
       { name: "receiveDateOffice", labelKey: "f_receive_date_office", type: "date" },
       { name: "sendDate", labelKey: "f_send_date", type: "date" },
       { name: "estArrival", labelKey: "f_estimated_arrival", type: "text" },
-      { name: "notes", labelKey: "f_office_notes", type: "textarea", span2: true },
     ],
   },
   customs: {
@@ -333,7 +330,6 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
       { name: "shipmentWeight", labelKey: "f_shipment_weight", type: "text" },
       { name: "customsPort", labelKey: "f_customs_port", type: "text" },
       { name: "clearancePrice", labelKey: "f_clearance_price", type: "number", placeholder: "0.00" },
-      { name: "notes", labelKey: "f_office_notes", type: "textarea", span2: true },
     ],
   },
 
@@ -362,7 +358,6 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
       ] },
       { name: "deportDate", labelKey: "f_deport_date", type: "date" },
       { name: "estIssue", labelKey: "f_estimated_issue", type: "text" },
-      { name: "notes", labelKey: "f_office_notes", type: "textarea", span2: true },
     ],
   },
   medical_report: {
@@ -384,7 +379,6 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
       ] },
       { name: "deportDate", labelKey: "f_deport_date", type: "date" },
       { name: "estIssue", labelKey: "f_estimated_issue", type: "text" },
-      { name: "notes", labelKey: "f_office_notes", type: "textarea", span2: true },
     ],
   },
   travel_insurance: {
@@ -399,7 +393,6 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
       { name: "insuranceStart", labelKey: "f_insurance_start", type: "date" },
       { name: "insuranceEnd", labelKey: "f_insurance_end", type: "date" },
       { name: "tripType", labelKey: "f_trip_type", type: "text" },
-      { name: "notes", labelKey: "f_office_notes", type: "textarea", span2: true },
     ],
   },
   hotel_booking: {
@@ -419,7 +412,6 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
         { value: "cancellable", labelKey: "list_cancellable" },
         { value: "non_cancellable", labelKey: "list_non_cancellable" },
       ] },
-      { name: "notes", labelKey: "f_office_notes", type: "textarea", span2: true },
     ],
   },
 };

@@ -133,6 +133,10 @@ export interface ServiceRecord {
   paymentMethod?: PaymentMethod;
   transferNo?: string;
   notes?: string;
+  // حقول الإلغاء
+  cancelReason?: string;
+  cancelledAt?: string | null;
+  cancelledBy?: string;
   createdAt: string;
   // Dynamic service-specific fields
   details: Record<string, string | number | undefined>;
@@ -225,6 +229,17 @@ export interface Notification {
   relatedEntityId?: string;
   isRead: boolean;
   createdAt: string;
+}
+
+/** سياسة نظامية — يديرها المدير العام فقط */
+export interface Policy {
+  id: string;
+  title: string;
+  description: string;
+  category: "general" | "cancellation" | "refund" | "payment" | "operational";
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type NavSection =

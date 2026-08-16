@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAppStore } from "@/lib/store";
 import { tr } from "@/lib/translations";
 import type { Invoice } from "@/lib/types";
@@ -41,8 +41,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { Printer, Receipt as ReceiptIcon, Pencil, Trash2, Eye } from "lucide-react";
+import {
+  Printer,
+  Receipt as ReceiptIcon,
+  Pencil,
+  Trash2,
+  Eye,
+  ChevronDown,
+  FileText,
+  FileSpreadsheet,
+  Calendar,
+  Loader2,
+} from "lucide-react";
 
 const currencySymbol = (c: string) => (c === "SAR" ? "ر.س" : c === "YER" ? "ر.ي" : "$");
 
@@ -56,17 +73,45 @@ export function InvoicesPage() {
   const [viewRecord, setViewRecord] = useState<Invoice | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [printMode, setPrintMode] = useState(false);
   const [editForm, setEditForm] = useState<{ totalAmount: number; paidAmount: number; status: string }>({
     totalAmount: 0,
     paidAmount: 0,
     status: "issued",
   });
+  const [saving, setSaving] = useState(false);
+
+  // إخفاء/إظهار عناصر الواجهة عند الطباعة
+  useEffect(() => {
+    if (printMode) {
+      document.body.classList.add("printing");
+    } else {
+      document.body.classList.remove("printing");
+    }
+    return () => document.body.classList.remove("printing");
+  }, [printMode]);
 
   const list = invoices.filter((i) => statusFilter === "all" || i.status === statusFilter);
 
-  const totalAmount = invoices.reduce((sum, i) => sum + (i.currency === "SAR" ? i.totalAmount * 0.27 : i.currency === "YER" ? i.totalAmount * 0.0004 : i.totalAmount), 0);
-  const totalPaid = invoices.reduce((sum, i) => sum + (i.currency === "SAR" ? i.paidAmount * 0.27 : i.currency === "YER" ? i.paidAmount * 0.0004 : i.paidAmount), 0);
-  const totalRemaining = totalAmount - totalPaid;
+  const totalByCurrency = (field: "totalAmount" | "paidAmount" | "remainingAmount") => {
+    const byCur: Record<string, number> = { SAR: 0, YER: 0, USD: 0 };
+    for (const i of invoices) {
+      byCur[i.currency] = (byCur[i.currency] || 0) + i[field];
+    }
+    return byCur;
+  };
+
+  const totalAmount = totalByCurrency("totalAmount");
+  const totalPaid = totalByCurrency("paidAmount");
+  const totalRemaining = totalByCurrency("remainingAmount");
+
+  const formatByCurrency = (byCur: Record<string, number>) => {
+    const parts: string[] = [];
+    if (byCur.SAR > 0) parts.push(`${byCur.SAR.toLocaleString("en-US")} ر.س`);
+    if (byCur.USD > 0) parts.push(`${byCur.USD.toLocaleString("en-US")} $`);
+    if (byCur.YER > 0) parts.push(`${byCur.YER.toLocaleString("en-US")} ر.ي`);
+    return parts.length > 0 ? parts.join(" | ") : "0";
+  };
 
   const statusLabel = (s: string) =>
     s === "paid" ? tr(lang, "invoice_paid") : s === "partial" ? tr(lang, "invoice_partial") : s === "issued" ? tr(lang, "invoice_issued") : tr(lang, "invoice_draft");
@@ -80,168 +125,309 @@ export function InvoicesPage() {
     setEditId(i.id);
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editId) return;
-    const i = invoices.find((x) => x.id === editId);
-    if (!i) return;
-    updateInvoice(editId, {
-      totalAmount: editForm.totalAmount,
-      paidAmount: editForm.paidAmount,
-      remainingAmount: editForm.totalAmount - editForm.paidAmount,
-      status: editForm.status as Invoice["status"],
-    });
-    toast.success(lang === "ar" ? "تم تحديث الفاتورة" : "Invoice updated");
-    setEditId(null);
+    setSaving(true);
+    try {
+      await updateInvoice(editId, {
+        totalAmount: editForm.totalAmount,
+        paidAmount: editForm.paidAmount,
+        status: editForm.status as Invoice["status"],
+      });
+      toast.success(lang === "ar" ? "تم تحديث الفاتورة" : "Invoice updated");
+      setEditId(null);
+    } catch (err) {
+      toast.error(lang === "ar" ? "فشل التحديث" : "Failed to update");
+    }
+    setSaving(false);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteId) return;
-    deleteInvoice(deleteId);
-    setDeleteId(null);
-    toast.success(lang === "ar" ? "تم حذف الفاتورة" : "Invoice deleted");
+    try {
+      await deleteInvoice(deleteId);
+      setDeleteId(null);
+      toast.success(lang === "ar" ? "تم حذف الفاتورة" : "Invoice deleted");
+    } catch (err) {
+      toast.error(lang === "ar" ? "فشل الحذف" : "Failed to delete");
+    }
   };
 
   const printInvoice = (i: Invoice) => {
     setViewRecord(i);
-    setTimeout(() => window.print(), 300);
+    setPrintMode(true);
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => {
+        setPrintMode(false);
+        setViewRecord(null);
+      }, 500);
+    }, 300);
+  };
+
+  const exportExcel = (period: "weekly" | "monthly") => {
+    const url = `/api/export?type=invoices&period=${period}&format=excel`;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `invoices_${period}_${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast.success(lang === "ar" ? "تم تصدير ملف Excel" : "Excel file exported");
+  };
+
+  const exportPDF = (period: "weekly" | "monthly" | "daily") => {
+    const url = `/api/export?type=invoices&period=${period}&format=pdf`;
+    window.open(url, "_blank");
+    toast.success(lang === "ar" ? "تم فتح تقرير PDF" : "PDF report opened");
   };
 
   return (
     <div className="space-y-5" dir={lang === "ar" ? "rtl" : "ltr"}>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{tr(lang, "nav_invoices")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {lang === "ar" ? `إجمالي الفواتير: ${invoices.length}` : `Total invoices: ${invoices.length}`}
-          </p>
+      {/* الشاشة العادية — تختفي عند الطباعة */}
+      <div className="print:hidden space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">{tr(lang, "nav_invoices")}</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {lang === "ar" ? `إجمالي الفواتير: ${invoices.length}` : `Total invoices: ${invoices.length}`}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-10 w-44 bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{tr(lang, "overall")}</SelectItem>
+                <SelectItem value="paid">{tr(lang, "invoice_paid")}</SelectItem>
+                <SelectItem value="partial">{tr(lang, "invoice_partial")}</SelectItem>
+                <SelectItem value="issued">{tr(lang, "invoice_issued")}</SelectItem>
+                <SelectItem value="draft">{tr(lang, "invoice_draft")}</SelectItem>
+              </SelectContent>
+            </Select>
+            {/* تصدير Excel */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="bg-background gap-2">
+                  <FileSpreadsheet className="w-4 h-4" />
+                  {tr(lang, "export_excel")}
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align={lang === "ar" ? "start" : "end"}>
+                <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExcel("weekly")}>
+                  <Calendar className="w-4 h-4" />
+                  {tr(lang, "export_weekly")}
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExcel("monthly")}>
+                  <Calendar className="w-4 h-4" />
+                  {tr(lang, "export_monthly")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {/* تصدير PDF — يومي/أسبوعي/شهري */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="bg-background gap-2">
+                  <FileText className="w-4 h-4" />
+                  {tr(lang, "export_pdf")}
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align={lang === "ar" ? "start" : "end"}>
+                <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportPDF("daily")}>
+                  <Calendar className="w-4 h-4" />
+                  {lang === "ar" ? "تقرير يومي" : "Daily Report"}
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportPDF("weekly")}>
+                  <Calendar className="w-4 h-4" />
+                  {tr(lang, "export_weekly")}
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportPDF("monthly")}>
+                  <Calendar className="w-4 h-4" />
+                  {tr(lang, "export_monthly")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="h-10 w-44 bg-background">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{tr(lang, "overall")}</SelectItem>
-            <SelectItem value="paid">{tr(lang, "invoice_paid")}</SelectItem>
-            <SelectItem value="partial">{tr(lang, "invoice_partial")}</SelectItem>
-            <SelectItem value="issued">{tr(lang, "invoice_issued")}</SelectItem>
-            <SelectItem value="draft">{tr(lang, "invoice_draft")}</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
 
-      {/* Summary cards — تم إزالة بطاقة صافي الربح نهائياً، نعرض: الإجمالي، المدفوع، المتبقي فقط */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-border card-shadow">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-lg bg-pastel-lilac flex items-center justify-center">
-                <ReceiptIcon className="w-5 h-5 text-pastel-lilac" />
+        {/* Summary cards — مفصولة حسب العملة */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card className="border-border card-shadow">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-lg bg-pastel-lilac flex items-center justify-center">
+                  <ReceiptIcon className="w-5 h-5 text-pastel-lilac" />
+                </div>
+                <p className="text-xs text-muted-foreground">{tr(lang, "total")}</p>
               </div>
-              <p className="text-xs text-muted-foreground">{tr(lang, "total")}</p>
-            </div>
-            <p className="text-2xl font-bold text-foreground num">${Math.round(totalAmount).toLocaleString("en-US")}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border card-shadow">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-lg bg-pastel-mint flex items-center justify-center">
-                <ReceiptIcon className="w-5 h-5 text-pastel-mint" />
+              <p className="text-base font-bold text-foreground num">{formatByCurrency(totalAmount)}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border card-shadow">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-lg bg-pastel-mint flex items-center justify-center">
+                  <ReceiptIcon className="w-5 h-5 text-pastel-mint" />
+                </div>
+                <p className="text-xs text-muted-foreground">{tr(lang, "paid")}</p>
               </div>
-              <p className="text-xs text-muted-foreground">{tr(lang, "paid")}</p>
-            </div>
-            <p className="text-2xl font-bold text-pastel-mint num">${Math.round(totalPaid).toLocaleString("en-US")}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border card-shadow">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-lg bg-pastel-peach flex items-center justify-center">
-                <ReceiptIcon className="w-5 h-5 text-pastel-peach" />
+              <p className="text-base font-bold text-pastel-mint num">{formatByCurrency(totalPaid)}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border card-shadow">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-lg bg-pastel-peach flex items-center justify-center">
+                  <ReceiptIcon className="w-5 h-5 text-pastel-peach" />
+                </div>
+                <p className="text-xs text-muted-foreground">{tr(lang, "remaining")}</p>
               </div>
-              <p className="text-xs text-muted-foreground">{tr(lang, "remaining")}</p>
-            </div>
-            <p className="text-2xl font-bold text-pastel-peach num">${Math.round(totalRemaining).toLocaleString("en-US")}</p>
-          </CardContent>
-        </Card>
-      </div>
+              <p className="text-base font-bold text-pastel-peach num">{formatByCurrency(totalRemaining)}</p>
+            </CardContent>
+          </Card>
+        </div>
 
-      <Card className="border-border card-shadow">
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/40 hover:bg-muted/40">
-                  <TableHead className="text-xs font-semibold">{tr(lang, "invoice_no")}</TableHead>
-                  <TableHead className="text-xs font-semibold">{tr(lang, "customer_name")}</TableHead>
-                  <TableHead className="text-xs font-semibold">{tr(lang, "total")}</TableHead>
-                  <TableHead className="text-xs font-semibold">{tr(lang, "paid")}</TableHead>
-                  <TableHead className="text-xs font-semibold">{tr(lang, "remaining")}</TableHead>
-                  <TableHead className="text-xs font-semibold">{tr(lang, "invoice_date")}</TableHead>
-                  <TableHead className="text-xs font-semibold">{tr(lang, "invoice_status")}</TableHead>
-                  <TableHead className="text-xs font-semibold text-end">{tr(lang, "actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {list.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12 text-sm text-muted-foreground">
-                      {tr(lang, "empty_invoices")}
-                    </TableCell>
+        <Card className="border-border card-shadow">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40">
+                    <TableHead className="text-xs font-semibold">{tr(lang, "invoice_no")}</TableHead>
+                    <TableHead className="text-xs font-semibold">{tr(lang, "customer_name")}</TableHead>
+                    <TableHead className="text-xs font-semibold">{tr(lang, "total")}</TableHead>
+                    <TableHead className="text-xs font-semibold">{tr(lang, "paid")}</TableHead>
+                    <TableHead className="text-xs font-semibold">{tr(lang, "remaining")}</TableHead>
+                    <TableHead className="text-xs font-semibold">{tr(lang, "invoice_date")}</TableHead>
+                    <TableHead className="text-xs font-semibold">{tr(lang, "invoice_status")}</TableHead>
+                    <TableHead className="text-xs font-semibold text-end">{tr(lang, "actions")}</TableHead>
                   </TableRow>
-                ) : (
-                  list.map((i) => (
-                    <TableRow key={i.id} className="hover:bg-accent/30">
-                      <TableCell className="text-xs text-muted-foreground num font-medium">{i.invoiceNumber}</TableCell>
-                      <TableCell className="text-sm font-medium text-foreground">{i.customerName}</TableCell>
-                      <TableCell className="text-sm font-bold text-foreground num">
-                        {i.totalAmount.toLocaleString("en-US")} {currencySymbol(i.currency)}
-                      </TableCell>
-                      <TableCell className="text-sm text-pastel-mint num">
-                        {i.paidAmount.toLocaleString("en-US")} {currencySymbol(i.currency)}
-                      </TableCell>
-                      <TableCell className="text-sm text-pastel-peach num">
-                        {i.remainingAmount.toLocaleString("en-US")} {currencySymbol(i.currency)}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground num">{new Date(i.issuedAt).toLocaleDateString("en-GB")}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className={
-                          i.status === "paid" ? "bg-pastel-mint text-pastel-mint"
-                          : i.status === "partial" ? "bg-pastel-yellow text-pastel-yellow"
-                          : i.status === "issued" ? "bg-pastel-sky text-pastel-sky"
-                          : "bg-muted text-muted-foreground"
-                        }>
-                          {statusLabel(i.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-end">
-                        <div className="flex items-center justify-end gap-1">
-                          {/* ترتيب: معاينة ← حذف ← تعديل ← طباعة */}
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={tr(lang, "action_preview")} onClick={() => setViewRecord(i)}>
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title={tr(lang, "delete_invoice")} onClick={() => setDeleteId(i.id)}>
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={tr(lang, "edit_invoice")} onClick={() => openEdit(i)}>
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={tr(lang, "print_invoice")} onClick={() => printInvoice(i)}>
-                            <Printer className="w-4 h-4" />
-                          </Button>
-                        </div>
+                </TableHeader>
+                <TableBody>
+                  {list.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-12 text-sm text-muted-foreground">
+                        {tr(lang, "empty_invoices")}
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                  ) : (
+                    list.map((i) => (
+                      <TableRow key={i.id} className="hover:bg-accent/30">
+                        <TableCell className="text-xs text-muted-foreground num font-medium">{i.invoiceNumber}</TableCell>
+                        <TableCell className="text-sm font-medium text-foreground">{i.customerName}</TableCell>
+                        <TableCell className="text-sm font-bold text-foreground num">
+                          {i.totalAmount.toLocaleString("en-US")} {currencySymbol(i.currency)}
+                        </TableCell>
+                        <TableCell className="text-sm text-pastel-mint num">
+                          {i.paidAmount.toLocaleString("en-US")} {currencySymbol(i.currency)}
+                        </TableCell>
+                        <TableCell className="text-sm text-pastel-peach num">
+                          {i.remainingAmount.toLocaleString("en-US")} {currencySymbol(i.currency)}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground num">{new Date(i.issuedAt).toLocaleDateString("en-GB")}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className={
+                            i.status === "paid" ? "bg-pastel-mint text-pastel-mint"
+                            : i.status === "partial" ? "bg-pastel-yellow text-pastel-yellow"
+                            : i.status === "issued" ? "bg-pastel-sky text-pastel-sky"
+                            : "bg-muted text-muted-foreground"
+                          }>
+                            {statusLabel(i.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-end">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={tr(lang, "action_preview")} onClick={() => setViewRecord(i)}>
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title={tr(lang, "delete_invoice")} onClick={() => setDeleteId(i.id)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={tr(lang, "edit_invoice")} onClick={() => openEdit(i)}>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={tr(lang, "print_invoice")} onClick={() => printInvoice(i)}>
+                              <Printer className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* View / Print dialog */}
-      <Dialog open={!!viewRecord} onOpenChange={(o) => !o && setViewRecord(null)}>
+      {/* نسخة الطباعة النظيفة — بدون أزرار × أو إلغاء أو طباعة */}
+      {viewRecord && printMode && (
+        <div className="hidden print:block" dir="rtl">
+          <div style={{ padding: "40px", fontFamily: "Cairo, Arial, sans-serif", color: "#1F2937" }}>
+            {/* اسم المكتب بخط كبير وواضح ورسمي */}
+            <div style={{ textAlign: "center", marginBottom: "30px", borderBottom: "3px solid #7C3AED", paddingBottom: "20px" }}>
+              <h1 style={{ fontSize: "32px", fontWeight: "bold", color: "#7C3AED", margin: "0 0 5px 0" }}>
+                سما اليمن للسفريات والسياحة
+              </h1>
+              <p style={{ fontSize: "14px", color: "#64748B", margin: "0" }}>فاتورة رسمية</p>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
+              <div>
+                <p style={{ fontSize: "12px", color: "#64748B", margin: "0" }}>رقم الفاتورة</p>
+                <p style={{ fontSize: "16px", fontWeight: "bold", margin: "5px 0 0 0" }}>{viewRecord.invoiceNumber}</p>
+              </div>
+              <div style={{ textAlign: "left" }}>
+                <p style={{ fontSize: "12px", color: "#64748B", margin: "0" }}>تاريخ الإصدار</p>
+                <p style={{ fontSize: "14px", margin: "5px 0 0 0" }}>{new Date(viewRecord.issuedAt).toLocaleDateString("en-GB")}</p>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: "20px" }}>
+              <p style={{ fontSize: "12px", color: "#64748B", margin: "0" }}>العميل</p>
+              <p style={{ fontSize: "16px", fontWeight: "bold", margin: "5px 0 0 0" }}>{viewRecord.customerName}</p>
+            </div>
+
+            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "20px" }}>
+              <thead>
+                <tr>
+                  <th style={{ background: "#F3E8FF", color: "#6D28D9", padding: "12px 8px", textAlign: "right", fontSize: "13px", border: "1px solid #E2E8F0" }}>البند</th>
+                  <th style={{ background: "#F3E8FF", color: "#6D28D9", padding: "12px 8px", textAlign: "right", fontSize: "13px", border: "1px solid #E2E8F0" }}>القيمة</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style={{ padding: "10px 8px", textAlign: "right", fontSize: "13px", border: "1px solid #E2E8F0" }}>الإجمالي</td>
+                  <td style={{ padding: "10px 8px", textAlign: "right", fontSize: "13px", fontWeight: "bold", border: "1px solid #E2E8F0" }}>{viewRecord.totalAmount.toLocaleString("en-US")} {currencySymbol(viewRecord.currency)}</td>
+                </tr>
+                <tr>
+                  <td style={{ padding: "10px 8px", textAlign: "right", fontSize: "13px", border: "1px solid #E2E8F0" }}>المدفوع</td>
+                  <td style={{ padding: "10px 8px", textAlign: "right", fontSize: "13px", color: "#10B981", fontWeight: "bold", border: "1px solid #E2E8F0" }}>{viewRecord.paidAmount.toLocaleString("en-US")} {currencySymbol(viewRecord.currency)}</td>
+                </tr>
+                <tr>
+                  <td style={{ padding: "10px 8px", textAlign: "right", fontSize: "13px", border: "1px solid #E2E8F0" }}>المتبقي</td>
+                  <td style={{ padding: "10px 8px", textAlign: "right", fontSize: "13px", color: "#F97316", fontWeight: "bold", border: "1px solid #E2E8F0" }}>{viewRecord.remainingAmount.toLocaleString("en-US")} {currencySymbol(viewRecord.currency)}</td>
+                </tr>
+                <tr>
+                  <td style={{ padding: "10px 8px", textAlign: "right", fontSize: "13px", border: "1px solid #E2E8F0" }}>الحالة</td>
+                  <td style={{ padding: "10px 8px", textAlign: "right", fontSize: "13px", fontWeight: "bold", border: "1px solid #E2E8F0" }}>{statusLabel(viewRecord.status)}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div style={{ marginTop: "40px", textAlign: "center", fontSize: "11px", color: "#94A3B8", borderTop: "1px solid #E2E8F0", paddingTop: "15px" }}>
+              جميع الحقوق محفوظة لدى Sky Link 2026
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View dialog — للمعاينة فقط (مع أزرار) */}
+      <Dialog open={!!viewRecord && !printMode} onOpenChange={(o) => !o && setViewRecord(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold flex items-center gap-2">
@@ -250,7 +436,6 @@ export function InvoicesPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            {/* فاتورة رسمية مهيأة للعربية وRTL */}
             <div className="border border-border rounded-lg p-6 bg-card">
               <div className="flex items-start justify-between mb-6 pb-4 border-b border-border">
                 <div>
@@ -269,29 +454,21 @@ export function InvoicesPage() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">{tr(lang, "invoice_date")}</p>
-                  <p className="font-semibold text-foreground num">
-                    {viewRecord && new Date(viewRecord.issuedAt).toLocaleDateString("en-GB")}
-                  </p>
+                  <p className="font-semibold text-foreground num">{viewRecord && new Date(viewRecord.issuedAt).toLocaleDateString("en-GB")}</p>
                 </div>
               </div>
               <div className="space-y-2 border-t border-border pt-4">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">{tr(lang, "total")}</span>
-                  <span className="font-bold text-foreground num">
-                    {viewRecord && `${viewRecord.totalAmount.toLocaleString("en-US")} ${currencySymbol(viewRecord.currency)}`}
-                  </span>
+                  <span className="font-bold text-foreground num">{viewRecord && `${viewRecord.totalAmount.toLocaleString("en-US")} ${currencySymbol(viewRecord.currency)}`}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">{tr(lang, "paid")}</span>
-                  <span className="font-bold text-pastel-mint num">
-                    {viewRecord && `${viewRecord.paidAmount.toLocaleString("en-US")} ${currencySymbol(viewRecord.currency)}`}
-                  </span>
+                  <span className="font-bold text-pastel-mint num">{viewRecord && `${viewRecord.paidAmount.toLocaleString("en-US")} ${currencySymbol(viewRecord.currency)}`}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">{tr(lang, "remaining")}</span>
-                  <span className="font-bold text-pastel-peach num">
-                    {viewRecord && `${viewRecord.remainingAmount.toLocaleString("en-US")} ${currencySymbol(viewRecord.currency)}`}
-                  </span>
+                  <span className="font-bold text-pastel-peach num">{viewRecord && `${viewRecord.remainingAmount.toLocaleString("en-US")} ${currencySymbol(viewRecord.currency)}`}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm pt-2 border-t border-border">
                   <span className="text-muted-foreground">{tr(lang, "invoice_status")}</span>
@@ -325,28 +502,16 @@ export function InvoicesPage() {
           <div className="space-y-4 py-4">
             <div className="space-y-1.5">
               <Label>{tr(lang, "total")}</Label>
-              <Input
-                type="number"
-                value={editForm.totalAmount}
-                onChange={(e) => setEditForm({ ...editForm, totalAmount: parseFloat(e.target.value || "0") })}
-                className="bg-background num"
-              />
+              <Input type="number" value={editForm.totalAmount} onChange={(e) => setEditForm({ ...editForm, totalAmount: parseFloat(e.target.value || "0") })} className="bg-background num" />
             </div>
             <div className="space-y-1.5">
               <Label>{tr(lang, "paid")}</Label>
-              <Input
-                type="number"
-                value={editForm.paidAmount}
-                onChange={(e) => setEditForm({ ...editForm, paidAmount: parseFloat(e.target.value || "0") })}
-                className="bg-background num"
-              />
+              <Input type="number" value={editForm.paidAmount} onChange={(e) => setEditForm({ ...editForm, paidAmount: parseFloat(e.target.value || "0") })} className="bg-background num" />
             </div>
             <div className="space-y-1.5">
               <Label>{tr(lang, "invoice_status")}</Label>
               <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
-                <SelectTrigger className="bg-background">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="draft">{tr(lang, "invoice_draft")}</SelectItem>
                   <SelectItem value="issued">{tr(lang, "invoice_issued")}</SelectItem>
@@ -357,14 +522,15 @@ export function InvoicesPage() {
             </div>
             <div className="p-3 rounded-lg bg-muted/40 text-sm">
               <p className="text-muted-foreground">{tr(lang, "remaining")}</p>
-              <p className="font-bold text-foreground num">
-                {(editForm.totalAmount - editForm.paidAmount).toLocaleString("en-US")}
-              </p>
+              <p className="font-bold text-foreground num">{(editForm.totalAmount - editForm.paidAmount).toLocaleString("en-US")}</p>
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="outline" onClick={() => setEditId(null)}>{tr(lang, "cancel")}</Button>
-            <Button onClick={saveEdit} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95">{tr(lang, "save")}</Button>
+            <Button onClick={saveEdit} disabled={saving} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {tr(lang, "save")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

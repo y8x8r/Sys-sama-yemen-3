@@ -1,8 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Prisma schema — سما اليمن للسفريات والسياحة
+// قاعدة بيانات SQLite محلية (ملف على القرص) — جاهزة للترحيل إلى PostgreSQL مستقبلاً
 
 generator client {
   provider = "prisma-client-js"
@@ -10,23 +7,268 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  // يتم ضبطها من متغير البيئة DATABASE_URL — افتراضياً ملف محلي
+  url = env("DATABASE_URL")
 }
+
+// ==================== الهوية والصلاحيات ====================
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  username           String   @unique
+  passwordHash       String
+  role               String   @default("booking_officer") // manager | accountant | booking_officer
+  employeeId         String?  @unique
+  isActive           Boolean  @default(true)
+  mustChangePassword Boolean  @default(false)
+  // أسئلة استعادة كلمة المرور — للمدير العام فقط، تُخزَّن مجزّأة
+  securityQ1Hash     String?  // متى تم افتتاح مكتب سما اليمن؟
+  securityQ2Hash     String?  // ما هو إيميلك الشخصي؟
+  lastLoginAt        DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  employee    Employee? @relation("UserEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
+  permissions UserPermission[]
+  auditLogs   AuditLog[]
+
+  @@index([role])
+}
+model UserPermission {
+  id        String @id @default(cuid())
+  userId    String
+  moduleKey String // services | customers | finance | monitoring | reports
+  level     String @default("read") // read | write | update | book | full
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moduleKey])
+  @@index([userId])
 }
 
-model Post {
-  id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// ==================== البيانات المرجعية ====================
+
+model Employee {
+  id             String   @id @default(cuid())
+  employeeNumber String   @unique
+  fullName       String
+  hiredOn        DateTime
+  jobTitle       String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user       User?          @relation("UserEmployee")
+  services   ServiceRecord[] @relation("HandledByEmployee")
+  auditLogs  AuditLog[]      @relation("PerformedByEmployee")
+
+  @@index([isActive])
+}
+
+model Customer {
+  id             String   @id @default(cuid())
+  customerNumber String   @unique
+  fullName       String
+  phoneNumber    String
+  passportNumber String?
+  nationalId     String?
+  cardNumber     String?
+  joinedOn       DateTime
+  referralSource String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  services ServiceRecord[]
+  invoices Invoice[]
+  payments Payment[]
+
+  @@index([fullName])
+  @@index([phoneNumber])
+  @@index([passportNumber])
+}
+
+model Agent {
+  id          String   @id @default(cuid())
+  officeName  String
+  agentNumber String
+  serviceType String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model TransportCompany {
+  id            String   @id @default(cuid())
+  companyName   String
+  companyNumber String
+  address       String
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ==================== المعاملات والخدمات ====================
+
+model ServiceRecord {
+  id             String   @id @default(cuid())
+  serviceType    String
+  serviceNumber  String   @unique
+  customerId     String
+  customerName   String
+  handledByEmployeeId String?
+  status         String   @default("pending") // pending | processing | completed | cancelled | delivered
+  price          Float
+  paid           Float
+  remaining      Float
+  currency       String   @default("SAR") // SAR | YER | USD
+  paymentMethod  String?  // cash | transfer | wallet
+  transferNo     String?
+  notes          String?
+  // حقول الإلغاء
+  cancelReason   String?
+  cancelledAt    DateTime?
+  cancelledBy    String?
+  // تفاصيل الخدمة الخاصة بكل نوع (JSON)
+  details        String   @default("{}") // JSON string
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  customer Customer  @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  employee Employee? @relation("HandledByEmployee", fields: [handledByEmployeeId], references: [id], onDelete: SetNull)
+  invoice  Invoice?
+  payments Payment[]
+
+  @@index([serviceType])
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ==================== المالية ====================
+
+model Invoice {
+  id              String   @id @default(cuid())
+  invoiceNumber   String   @unique
+  customerId      String
+  customerName    String
+  serviceId       String   @unique
+  serviceType     String
+  serviceNumber   String
+  totalAmount     Float
+  paidAmount      Float
+  remainingAmount Float
+  currency        String   @default("SAR")
+  status          String   @default("issued") // draft | issued | paid | partial | cancelled
+  issuedAt        DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  customer Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  service  ServiceRecord  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([issuedAt])
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  paymentNumber String   @unique
+  customerId    String
+  customerName  String
+  invoiceId     String?
+  invoiceNumber String?
+  serviceId     String?
+  serviceNumber String?
+  amount        Float
+  currency      String   @default("SAR")
+  method        String   @default("cash")
+  transferNo    String?
+  status        String   @default("approved") // pending | approved | reversed
+  receivedAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  customer Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  invoice  Invoice?       @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  service  ServiceRecord? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  @@index([customerId])
+  @@index([invoiceId])
+  @@index([receivedAt])
+}
+
+model Expense {
+  id            String   @id @default(cuid())
+  expenseNumber String   @unique
+  category      String   // غرض الصرف
+  description   String
+  beneficiary   String   @default("—")
+  amount        Float
+  currency      String   @default("SAR")
+  method        String   @default("cash")
+  reference     String?
+  status        String   @default("approved")
+  paidAt        DateTime
+  createdAt     DateTime @default(now())
+  createdBy     String
+
+  @@index([paidAt])
+  @@index([status])
+}
+
+// ==================== المراقبة ====================
+
+model AuditLog {
+  id              String   @id @default(cuid())
+  occurredAt      DateTime @default(now())
+  actorUsername   String
+  actorRole       String
+  action          String
+  moduleKey       String
+  entityType      String   @default("")
+  entityId        String?
+  summary         String
+  beforeData      String?
+  afterData       String?
+  actorUserId     String?
+  employeeId      String?
+
+  user     User?     @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  employee Employee? @relation("PerformedByEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
+
+  @@index([occurredAt])
+  @@index([actorUserId])
+  @@index([moduleKey])
+}
+
+model Notification {
+  id              String   @id @default(cuid())
+  title           String
+  body            String
+  type            String   @default("info") // info | warning | success | danger
+  moduleKey       String?
+  relatedEntityId String?
+  isRead          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+// ==================== السياسات ====================
+
+model Policy {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  category    String   @default("general") // general | cancellation | refund | payment | operational
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([isActive])
 }

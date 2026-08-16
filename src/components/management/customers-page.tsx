@@ -47,8 +47,10 @@ import {
   Trash2,
   ChevronDown,
   FileSpreadsheet,
+  FileText,
   Calendar,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
 
 export function CustomersPage() {
@@ -68,9 +70,12 @@ export function CustomersPage() {
     phoneNumber: "",
     passportNumber: "",
     nationalId: "",
+    cardNumber: "",
     referralSource: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [formDirty, setFormDirty] = useState(false);
 
   const list = useMemo(() => {
     if (!search.trim()) return customers;
@@ -85,9 +90,10 @@ export function CustomersPage() {
   }, [customers, search]);
 
   const openCreate = () => {
-    setForm({ fullName: "", phoneNumber: "", passportNumber: "", nationalId: "", referralSource: "" });
+    setForm({ fullName: "", phoneNumber: "", passportNumber: "", nationalId: "", cardNumber: "", referralSource: "" });
     setEditingId(null);
     setErrors({});
+    setFormDirty(false);
     setOpen(true);
   };
 
@@ -97,70 +103,87 @@ export function CustomersPage() {
       phoneNumber: c.phoneNumber,
       passportNumber: c.passportNumber ?? "",
       nationalId: c.nationalId ?? "",
+      cardNumber: c.cardNumber ?? "",
       referralSource: c.referralSource ?? "",
     });
     setEditingId(c.id);
     setErrors({});
+    setFormDirty(false);
     setOpen(true);
   };
 
-  const submit = () => {
+  const submit = async () => {
     const errs: Record<string, string> = {};
     if (!form.fullName.trim()) errs.fullName = lang === "ar" ? "مطلوب" : "Required";
     if (!form.phoneNumber.trim()) errs.phoneNumber = lang === "ar" ? "مطلوب" : "Required";
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    if (editingId) {
-      updateCustomer(editingId, form);
-      toast.success(lang === "ar" ? "تم تحديث العميل" : "Customer updated");
-    } else {
-      addCustomer(form);
-      toast.success(lang === "ar" ? "تم حفظ العميل" : "Customer saved");
+    setSaving(true);
+    try {
+      if (editingId) {
+        await updateCustomer(editingId, form);
+        toast.success(lang === "ar" ? "تم تحديث العميل" : "Customer updated");
+      } else {
+        const result = await addCustomer(form);
+        if (result) {
+          toast.success(lang === "ar" ? "تم حفظ العميل" : "Customer saved");
+        } else {
+          toast.error(lang === "ar" ? "فشل حفظ العميل" : "Failed to save customer");
+          setSaving(false);
+          return;
+        }
+      }
+      setOpen(false);
+      setForm({ fullName: "", phoneNumber: "", passportNumber: "", nationalId: "", cardNumber: "", referralSource: "" });
+      setEditingId(null);
+      setFormDirty(false);
+    } catch (err) {
+      toast.error(lang === "ar" ? "حدث خطأ" : "An error occurred");
     }
-    setOpen(false);
-    setForm({ fullName: "", phoneNumber: "", passportNumber: "", nationalId: "", referralSource: "" });
-    setEditingId(null);
+    setSaving(false);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteId) return;
-    deleteCustomer(deleteId);
-    setDeleteId(null);
-    toast.success(lang === "ar" ? "تم حذف العميل" : "Customer deleted");
+    try {
+      await deleteCustomer(deleteId);
+      setDeleteId(null);
+      toast.success(lang === "ar" ? "تم حذف العميل" : "Customer deleted");
+    } catch (err) {
+      toast.error(lang === "ar" ? "فشل الحذف" : "Failed to delete");
+    }
   };
 
   const exportExcel = (period: "weekly" | "monthly") => {
-    const now = new Date();
-    const from = new Date(now);
-    if (period === "weekly") from.setDate(now.getDate() - 7);
-    else from.setMonth(now.getMonth() - 1);
-
-    const filtered = list.filter((c) => new Date(c.createdAt) >= from);
-    if (filtered.length === 0) {
-      toast.info(lang === "ar" ? "لا توجد بيانات للتصدير في الفترة المحددة" : "No data to export for the selected period");
-      return;
-    }
-    const headers = [tr(lang, "customer_name"), tr(lang, "customer_number"), tr(lang, "phone"), tr(lang, "passport_number"), tr(lang, "customer_joined"), tr(lang, "customer_referral"), tr(lang, "status")];
-    const rows = filtered.map((c) => [
-      c.fullName,
-      c.customerNumber,
-      c.phoneNumber,
-      c.passportNumber ?? "",
-      c.joinedOn,
-      c.referralSource ?? "",
-      c.isActive ? tr(lang, "active") : tr(lang, "inactive"),
-    ]);
-    const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const bom = "\uFEFF";
-    const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
+    const url = `/api/export?type=customers&period=${period}&format=excel`;
     const a = document.createElement("a");
     a.href = url;
     a.download = `customers_${period}_${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
-    toast.success(lang === "ar" ? `تم تصدير ${filtered.length} سجل` : `Exported ${filtered.length} records`);
+    document.body.removeChild(a);
+    toast.success(lang === "ar" ? "تم تصدير ملف Excel" : "Excel file exported");
+  };
+
+  const exportPDF = (period: "weekly" | "monthly") => {
+    const url = `/api/export?type=customers&period=${period}&format=pdf`;
+    window.open(url, "_blank");
+    toast.success(lang === "ar" ? "تم فتح تقرير PDF" : "PDF report opened");
+  };
+
+  const handleDialogChange = (open: boolean) => {
+    if (!open && formDirty) {
+      if (!window.confirm(lang === "ar" ? "لديك تغييرات غير محفوظة. هل تريد المغادرة؟" : "You have unsaved changes. Leave anyway?")) {
+        return;
+      }
+    }
+    setOpen(open);
+    if (!open) {
+      setForm({ fullName: "", phoneNumber: "", passportNumber: "", nationalId: "", cardNumber: "", referralSource: "" });
+      setEditingId(null);
+      setFormDirty(false);
+    }
   };
 
   return (
@@ -173,7 +196,7 @@ export function CustomersPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* تصدير Excel أسبوعي وشهري */}
+          {/* تصدير Excel أسبوعي/شهري */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="bg-background gap-2">
@@ -188,6 +211,26 @@ export function CustomersPage() {
                 {tr(lang, "export_weekly")}
               </DropdownMenuItem>
               <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExcel("monthly")}>
+                <Calendar className="w-4 h-4" />
+                {tr(lang, "export_monthly")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {/* تصدير PDF أسبوعي/شهري */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="bg-background gap-2">
+                <FileText className="w-4 h-4" />
+                {tr(lang, "export_pdf")}
+                <ChevronDown className="w-3 h-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align={lang === "ar" ? "start" : "end"}>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportPDF("weekly")}>
+                <Calendar className="w-4 h-4" />
+                {tr(lang, "export_weekly")}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportPDF("monthly")}>
                 <Calendar className="w-4 h-4" />
                 {tr(lang, "export_monthly")}
               </DropdownMenuItem>
@@ -252,7 +295,7 @@ export function CustomersPage() {
                       <TableRow key={c.id} className="hover:bg-accent/30">
                         <TableCell>
                           <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#F3E8FF] to-[#EDE9FE] dark:from-pastel-lilac dark:to-pastel-lilac flex items-center justify-center text-[#6D28D9] dark:text-pastel-lilac font-bold text-sm">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-pastel-lilac to-pastel-lilac flex items-center justify-center text-pastel-lilac font-bold text-sm">
                               {c.fullName.charAt(0)}
                             </div>
                             <div>
@@ -275,7 +318,6 @@ export function CustomersPage() {
                         </TableCell>
                         <TableCell className="text-end">
                           <div className="flex items-center justify-end gap-1">
-                            {/* ترتيب الإجراءات: معاينة (مدمجة في تعديل) ← حذف ← تعديل */}
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title={tr(lang, "delete_customer")} onClick={() => setDeleteId(c.id)}>
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -295,7 +337,7 @@ export function CustomersPage() {
       </Card>
 
       {/* Create/Edit dialog */}
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleDialogChange}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">
@@ -322,14 +364,18 @@ export function CustomersPage() {
               <Input value={form.nationalId} onChange={(e) => setForm({ ...form, nationalId: e.target.value })} className="bg-background" />
             </div>
             <div className="space-y-1.5">
+              <Label>{tr(lang, "f_card_number")}</Label>
+              <Input value={form.cardNumber} onChange={(e) => setForm({ ...form, cardNumber: e.target.value })} className="bg-background" />
+            </div>
+            <div className="space-y-1.5">
               <Label>{tr(lang, "customer_referral")}</Label>
               <Input value={form.referralSource} onChange={(e) => setForm({ ...form, referralSource: e.target.value })} className="bg-background" placeholder={lang === "ar" ? "توصية، إعلان..." : "Referral, ad..."} />
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>{tr(lang, "cancel")}</Button>
-            <Button onClick={submit} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2">
-              <CheckCircle2 className="w-4 h-4" />
+            <Button variant="outline" onClick={() => handleDialogChange(false)}>{tr(lang, "cancel")}</Button>
+            <Button onClick={submit} disabled={saving} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
               {tr(lang, "save")}
             </Button>
           </DialogFooter>
@@ -341,9 +387,7 @@ export function CustomersPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{tr(lang, "delete_customer")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {tr(lang, "confirm_delete_customer")}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{tr(lang, "confirm_delete_customer")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{tr(lang, "cancel")}</AlertDialogCancel>

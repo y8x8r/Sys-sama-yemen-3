@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useAppStore } from "@/lib/store";
 import { LoginPage } from "@/components/auth/login-page";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
@@ -17,10 +18,26 @@ import { AuditLogPage } from "@/components/monitoring/audit-log-page";
 import { VisaExpiryPage } from "@/components/monitoring/visa-expiry-page";
 import { UsersPermissionsPage } from "@/components/settings/users-permissions-page";
 import { SystemSettingsPage } from "@/components/settings/system-settings-page";
+import { Loader2 } from "lucide-react";
 
 export default function Home() {
   const isAuthed = useAppStore((s) => s.isAuthed);
+  const authLoading = useAppStore((s) => s.authLoading);
   const currentPage = useAppStore((s) => s.currentPage);
+  const checkSession = useAppStore((s) => s.checkSession);
+
+  // التحقق من الجلسة عند تحميل الصفحة
+  useEffect(() => {
+    checkSession();
+  }, [checkSession]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!isAuthed) {
     return <LoginPage />;
@@ -34,7 +51,6 @@ export default function Home() {
 }
 
 function PageRouter({ page }: { page: string }) {
-  // Service pages
   if (serviceConfigs[page]) {
     return <ServicePage config={serviceConfigs[page]} />;
   }
