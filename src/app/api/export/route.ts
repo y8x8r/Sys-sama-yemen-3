@@ -122,8 +122,12 @@ export async function GET(req: NextRequest) {
 
   if (format === "pdf") {
     // توليد PDF بصيغة HTML قابل للطباعة (RTL)
-    const periodLabel = period === "weekly" ? "تقرير أسبوعي" : period === "monthly" ? "تقرير شهري" : "تقرير شامل";
+    const periodLabel = period === "weekly" ? "تقرير أسبوعي" : period === "monthly" ? "تقرير شهري" : period === "daily" ? "تقرير يومي" : "تقرير شامل";
     const dateRange = `من ${from.toISOString().split("T")[0]} إلى ${now.toISOString().split("T")[0]}`;
+
+    // ترميز اسم الملف لتجنب أحرف غير ASCII في Content-Disposition (يحدث HTTP 500)
+    const safeFilename = `report_${type}_${period}.html`;
+    const encodedFilename = encodeURIComponent(safeFilename);
 
     const html = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -133,7 +137,7 @@ export async function GET(req: NextRequest) {
 <style>
   body { font-family: 'Cairo', Arial, sans-serif; padding: 40px; color: #1F2937; }
   .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #7C3AED; padding-bottom: 20px; }
-  .office-name { font-size: 28px; font-weight: bold; color: #7C3AED; margin-bottom: 5px; }
+  .office-name { font-size: 32px; font-weight: bold; color: #7C3AED; margin-bottom: 5px; }
   .report-title { font-size: 18px; font-weight: 600; }
   .period { font-size: 14px; color: #64748B; margin-top: 5px; }
   table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -165,7 +169,7 @@ export async function GET(req: NextRequest) {
     return new NextResponse(html, {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
-        "Content-Disposition": `inline; filename="${title}_${period}.html"`,
+        "Content-Disposition": `inline; filename="${encodedFilename}"; filename*=UTF-8''${encodedFilename}`,
       },
     });
   }
@@ -174,11 +178,13 @@ export async function GET(req: NextRequest) {
   const bom = "\uFEFF";
   const csv = [headers, ...records].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
   const csvContent = bom + csv;
+  const safeCsvName = `report_${type}_${period}.csv`;
+  const encodedCsvName = encodeURIComponent(safeCsvName);
 
   return new NextResponse(csvContent, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${title}_${period}.csv"`,
+      "Content-Disposition": `attachment; filename="${encodedCsvName}"; filename*=UTF-8''${encodedCsvName}`,
     },
   });
 }

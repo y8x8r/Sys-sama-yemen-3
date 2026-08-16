@@ -272,3 +272,46 @@ model Policy {
   @@index([category])
   @@index([isActive])
 }
+
+// ==================== الصندوق/الحساب المحاسبي ====================
+
+model CashBox {
+  id          String   @id @default(cuid())
+  code        String   @unique // CASH | BANK_SAR | BANK_USD | ...
+  name        String
+  kind        String   @default("cash") // cash | bank
+  currency    String   @default("SAR") // SAR | YER | USD
+  balance     Float    @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  transactions TransactionLedger[]
+
+  @@index([currency])
+  @@index([isActive])
+}
+
+// ==================== سجل العمليات المالية (Double-Entry Ledger) ====================
+
+model TransactionLedger {
+  id            String   @id @default(cuid())
+  txNumber      String   @unique // TX-2026-00001
+  cashBoxId     String
+  cashBoxCode   String // اسم الصندوق للحفظ التاريخي
+  direction     String   // debit (خصم/صرف) | credit (إضافة/تحصيل)
+  amount        Float
+  currency      String   @default("SAR")
+  reason        String   // سبب الحركة
+  moduleKey     String   // expenses | payments | services | manual
+  relatedEntityType String? // expense | payment | service | invoice
+  relatedEntityId String?
+  actorUsername String
+  createdAt     DateTime @default(now())
+
+  cashBox CashBox @relation(fields: [cashBoxId], references: [id], onDelete: Restrict)
+
+  @@index([cashBoxId])
+  @@index([createdAt])
+  @@index([moduleKey])
+}

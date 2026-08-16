@@ -73,23 +73,12 @@ export function InvoicesPage() {
   const [viewRecord, setViewRecord] = useState<Invoice | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [printMode, setPrintMode] = useState(false);
   const [editForm, setEditForm] = useState<{ totalAmount: number; paidAmount: number; status: string }>({
     totalAmount: 0,
     paidAmount: 0,
     status: "issued",
   });
   const [saving, setSaving] = useState(false);
-
-  // إخفاء/إظهار عناصر الواجهة عند الطباعة
-  useEffect(() => {
-    if (printMode) {
-      document.body.classList.add("printing");
-    } else {
-      document.body.classList.remove("printing");
-    }
-    return () => document.body.classList.remove("printing");
-  }, [printMode]);
 
   const list = invoices.filter((i) => statusFilter === "all" || i.status === statusFilter);
 
@@ -154,15 +143,10 @@ export function InvoicesPage() {
   };
 
   const printInvoice = (i: Invoice) => {
-    setViewRecord(i);
-    setPrintMode(true);
-    setTimeout(() => {
-      window.print();
-      setTimeout(() => {
-        setPrintMode(false);
-        setViewRecord(null);
-      }, 500);
-    }, 300);
+    // فتح صفحة طباعة الفاتورة في نافذة جديدة — نظيفة بدون أزرار ×/إلغاء/طباعة
+    const url = `/api/print/invoice?id=${i.id}`;
+    window.open(url, "_blank", "width=900,height=700,noopener,noreferrer");
+    toast.success(lang === "ar" ? "تم فتح نسخة الطباعة" : "Print view opened");
   };
 
   const exportExcel = (period: "weekly" | "monthly") => {
@@ -184,8 +168,7 @@ export function InvoicesPage() {
 
   return (
     <div className="space-y-5" dir={lang === "ar" ? "rtl" : "ltr"}>
-      {/* الشاشة العادية — تختفي عند الطباعة */}
-      <div className="print:hidden space-y-5">
+      <div className="space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">{tr(lang, "nav_invoices")}</h1>
@@ -364,70 +347,9 @@ export function InvoicesPage() {
         </Card>
       </div>
 
-      {/* نسخة الطباعة النظيفة — بدون أزرار × أو إلغاء أو طباعة */}
-      {viewRecord && printMode && (
-        <div className="hidden print:block" dir="rtl">
-          <div style={{ padding: "40px", fontFamily: "Cairo, Arial, sans-serif", color: "#1F2937" }}>
-            {/* اسم المكتب بخط كبير وواضح ورسمي */}
-            <div style={{ textAlign: "center", marginBottom: "30px", borderBottom: "3px solid #7C3AED", paddingBottom: "20px" }}>
-              <h1 style={{ fontSize: "32px", fontWeight: "bold", color: "#7C3AED", margin: "0 0 5px 0" }}>
-                سما اليمن للسفريات والسياحة
-              </h1>
-              <p style={{ fontSize: "14px", color: "#64748B", margin: "0" }}>فاتورة رسمية</p>
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
-              <div>
-                <p style={{ fontSize: "12px", color: "#64748B", margin: "0" }}>رقم الفاتورة</p>
-                <p style={{ fontSize: "16px", fontWeight: "bold", margin: "5px 0 0 0" }}>{viewRecord.invoiceNumber}</p>
-              </div>
-              <div style={{ textAlign: "left" }}>
-                <p style={{ fontSize: "12px", color: "#64748B", margin: "0" }}>تاريخ الإصدار</p>
-                <p style={{ fontSize: "14px", margin: "5px 0 0 0" }}>{new Date(viewRecord.issuedAt).toLocaleDateString("en-GB")}</p>
-              </div>
-            </div>
-
-            <div style={{ marginBottom: "20px" }}>
-              <p style={{ fontSize: "12px", color: "#64748B", margin: "0" }}>العميل</p>
-              <p style={{ fontSize: "16px", fontWeight: "bold", margin: "5px 0 0 0" }}>{viewRecord.customerName}</p>
-            </div>
-
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "20px" }}>
-              <thead>
-                <tr>
-                  <th style={{ background: "#F3E8FF", color: "#6D28D9", padding: "12px 8px", textAlign: "right", fontSize: "13px", border: "1px solid #E2E8F0" }}>البند</th>
-                  <th style={{ background: "#F3E8FF", color: "#6D28D9", padding: "12px 8px", textAlign: "right", fontSize: "13px", border: "1px solid #E2E8F0" }}>القيمة</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td style={{ padding: "10px 8px", textAlign: "right", fontSize: "13px", border: "1px solid #E2E8F0" }}>الإجمالي</td>
-                  <td style={{ padding: "10px 8px", textAlign: "right", fontSize: "13px", fontWeight: "bold", border: "1px solid #E2E8F0" }}>{viewRecord.totalAmount.toLocaleString("en-US")} {currencySymbol(viewRecord.currency)}</td>
-                </tr>
-                <tr>
-                  <td style={{ padding: "10px 8px", textAlign: "right", fontSize: "13px", border: "1px solid #E2E8F0" }}>المدفوع</td>
-                  <td style={{ padding: "10px 8px", textAlign: "right", fontSize: "13px", color: "#10B981", fontWeight: "bold", border: "1px solid #E2E8F0" }}>{viewRecord.paidAmount.toLocaleString("en-US")} {currencySymbol(viewRecord.currency)}</td>
-                </tr>
-                <tr>
-                  <td style={{ padding: "10px 8px", textAlign: "right", fontSize: "13px", border: "1px solid #E2E8F0" }}>المتبقي</td>
-                  <td style={{ padding: "10px 8px", textAlign: "right", fontSize: "13px", color: "#F97316", fontWeight: "bold", border: "1px solid #E2E8F0" }}>{viewRecord.remainingAmount.toLocaleString("en-US")} {currencySymbol(viewRecord.currency)}</td>
-                </tr>
-                <tr>
-                  <td style={{ padding: "10px 8px", textAlign: "right", fontSize: "13px", border: "1px solid #E2E8F0" }}>الحالة</td>
-                  <td style={{ padding: "10px 8px", textAlign: "right", fontSize: "13px", fontWeight: "bold", border: "1px solid #E2E8F0" }}>{statusLabel(viewRecord.status)}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div style={{ marginTop: "40px", textAlign: "center", fontSize: "11px", color: "#94A3B8", borderTop: "1px solid #E2E8F0", paddingTop: "15px" }}>
-              جميع الحقوق محفوظة لدى Sky Link 2026
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* View dialog — للمعاينة فقط (مع أزرار) */}
-      <Dialog open={!!viewRecord && !printMode} onOpenChange={(o) => !o && setViewRecord(null)}>
+      <Dialog open={!!viewRecord} onOpenChange={(o) => !o && setViewRecord(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold flex items-center gap-2">

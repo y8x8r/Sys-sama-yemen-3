@@ -152,7 +152,7 @@ export function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-3">
         {groups.map((g) => {
           const isExpanded = g.flat || expanded[g.key] || g.pages.some((p) => p.page === currentPage);
           const isGroupActive = g.pages.some((p) => p.page === currentPage);
@@ -161,27 +161,30 @@ export function Sidebar() {
             const item = g.pages[0];
             const isActive = currentPage === item.page;
             return (
-              <button
-                key={g.key}
-                onClick={() => setPage(item.page)}
-                className={cn(
-                  "nav-item relative w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
-                  isActive ? "active" : "text-foreground/80 hover:bg-sidebar-accent"
-                )}
-              >
-                <item.icon className="nav-icon w-5 h-5" />
-                <span>{tr(lang, item.labelKey)}</span>
-              </button>
+              <div key={g.key} className="space-y-1">
+                <button
+                  onClick={() => setPage(item.page)}
+                  className={cn(
+                    "nav-item relative w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
+                    isActive ? "active" : "text-foreground/80 hover:bg-sidebar-accent"
+                  )}
+                >
+                  <item.icon className="nav-icon w-5 h-5" />
+                  <span>{tr(lang, item.labelKey)}</span>
+                </button>
+              </div>
             );
           }
 
           return (
-            <div key={g.key}>
+            <div key={g.key} className="space-y-1.5">
+              {/* فاصل بصري فوق كل قسم رئيسي (ما عدا الأول) */}
+              <div className="border-t border-sidebar-border mx-1" />
               <button
                 onClick={() => toggleSection(g.key)}
                 className={cn(
-                  "nav-item relative w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium",
-                  isGroupActive && !isExpanded ? "active" : "text-foreground/80 hover:bg-sidebar-accent"
+                  "nav-item relative w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-semibold",
+                  isGroupActive && !isExpanded ? "active" : "text-foreground hover:bg-sidebar-accent"
                 )}
               >
                 <span className="flex items-center gap-3">
@@ -190,28 +193,31 @@ export function Sidebar() {
                 </span>
                 <ChevronLeft
                   className={cn(
-                    "w-4 h-4 transition-transform",
+                    "w-4 h-4 transition-transform text-muted-foreground",
                     isExpanded && "-rotate-90"
                   )}
                 />
               </button>
 
               {isExpanded && (
-                <div className="mt-1 ms-3 space-y-0.5 border-s border-sidebar-border ps-3 pt-1">
-                  {g.pages.map((item) => {
+                <div className="space-y-0.5 ms-3 border-s border-sidebar-border ps-2 pt-1">
+                  {g.pages.map((item, idx) => {
                     const isActive = currentPage === item.page;
                     return (
-                      <button
-                        key={item.page}
-                        onClick={() => setPage(item.page)}
-                        className={cn(
-                          "nav-item relative w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] transition-all",
-                          isActive ? "active" : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
-                        )}
-                      >
-                        <item.icon className="nav-icon w-4 h-4 flex-shrink-0" />
-                        <span className="truncate">{tr(lang, item.labelKey)}</span>
-                      </button>
+                      <div key={item.page}>
+                        {/* فاصل دقيق بين العناصر الفرعية داخل القسم */}
+                        {idx > 0 && <div className="border-t border-sidebar-border/40 mx-2 my-0.5" />}
+                        <button
+                          onClick={() => setPage(item.page)}
+                          className={cn(
+                            "nav-item relative w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] transition-all",
+                            isActive ? "active" : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+                          )}
+                        >
+                          <item.icon className="nav-icon w-4 h-4 flex-shrink-0" />
+                          <span className="truncate">{tr(lang, item.labelKey)}</span>
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
