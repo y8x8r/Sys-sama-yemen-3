@@ -325,11 +325,11 @@
   .print\:hidden * {
     display: none !important;
   }
-  .print:block,
-  .print:block * {
+  .print\:block,
+  .print\:block * {
     visibility: visible;
   }
-  .print:block {
+  .print\:block {
     position: absolute;
     inset: 0;
     width: 100%;
