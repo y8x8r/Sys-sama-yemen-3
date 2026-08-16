@@ -482,7 +482,73 @@ export function ServicePage({ config }: Props) {
       ]
     : config.fields;
 
-  const tableFields = allFields.filter((f) => !f.hideInTable).slice(0, 6);
+  /**
+   * tableFields — الحقول المعروضة كأعمدة في الجدول.
+   *
+   * السبب الجذري للخطأ السابق: كان tableFields يأخذ أول 6 حقول من allFields
+   * بما في ذلك حقول العميل (customerName, customerNumber, passportNumber)
+   * التي لها fromCustomer. هذه الحقول:
+   *   1. تُنشئ تكراراً في رؤوس الأعمدة (عمود "اسم العميل" يظهر مرتين)
+   *   2. تقرأ من s.details[f.name] الذي لا يحتوي عليها (تُحفظ في حقول مستوى أعلى)
+   *   3. تعرض "—" بدلاً من القيمة الفعلية
+   *
+   * الإصلاح: استبعاد كل الحقول التي لها fromCustomer من tableFields،
+   * لأن بيانات العميل تُعرض في عمود مخصص (العمود الأول).
+   * كما نستبعد الحقول المالية التي لها أعمدة مخصصة (price/paid/remaining/currency).
+   *
+   * هذا الإصلاح في المكوّن المشترك، فينعكس على جميع الخدمات الـ 21 تلقائياً.
+   */
+  const tableFields = allFields.filter((f) => {
+    // استبعاد حقول العميل (تُعرض في العمود الأول المخصص)
+    if (f.fromCustomer) return false;
+    // استبعاد حقول العميل الصريحة حتى لو لم يكن لها fromCustomer
+    if (["customerName", "customerNumber", "phoneNumber", "passportNumber", "cardNumber", "nationalId", "customerId"].includes(f.name)) return false;
+    // استبعاد الحقول المالية (لها أعمدة مخصصة في نهاية الجدول)
+    if (["price", "paid", "remaining", "currency"].includes(f.name)) return false;
+    // استبعاد حقول لا تُعرض في الجدول
+    if (f.hideInTable) return false;
+    return true;
+  }).slice(0, 5);
+
+  /**
+   * getFieldValue — دالة ربط قائمة على اسم الحقل (Field-Name-Based Mapping)
+   *
+   * تضمن أن كل حقل يقرأ من المصدر الصحيح:
+   *   - price/paid/remaining → حقول مستوى أعلى في سجل الخدمة
+   *   - currency → رمز العملة
+   *   - paymentMethod → تسمية مترجمة
+   *   - غير ذلك → s.details[f.name]
+   *
+   * هذا يمنع تبديل القيم بين الأعمدة.
+   */
+  const getFieldValue = (f: FieldDef, s: typeof services[0]): { display: string; isNumeric: boolean } => {
+    let val: string | number | undefined;
+    let isNumeric = false;
+
+    if (f.name === "price") { val = s.price; isNumeric = true; }
+    else if (f.name === "paid") { val = s.paid; isNumeric = true; }
+    else if (f.name === "remaining") { val = s.remaining; isNumeric = true; }
+    else if (f.name === "currency") { val = currencySymbol(s.currency); }
+    else if (f.name === "paymentMethod") {
+      if (s.paymentMethod === "cash") val = tr(lang, "list_cash");
+      else if (s.paymentMethod === "transfer") val = tr(lang, "list_transfer");
+      else if (s.paymentMethod === "wallet") val = tr(lang, "list_wallet");
+      else val = s.paymentMethod;
+    }
+    else if (f.name === "transferNo") { val = s.transferNo; }
+    else if (f.name === "notes") { val = s.notes; }
+    else { val = s.details?.[f.name]; }
+
+    // ترجمة قيم القوائم المنسدلة
+    if (f.type === "select" && f.options && val) {
+      const opt = f.options.find((o) => o.value === val);
+      if (opt) val = tr(lang, opt.labelKey);
+    }
+
+    if (val === undefined || val === null || val === "") return { display: "—", isNumeric };
+    if (isNumeric) return { display: Number(val).toLocaleString("en-US"), isNumeric };
+    return { display: String(val), isNumeric };
+  };
 
   // تنبيه عند مغادرة النموذج بتغييرات غير محفوظة
   const handleDialogChange = (open: boolean) => {
@@ -594,12 +660,24 @@ export function ServicePage({ config }: Props) {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  {/* العمود 1: اسم العميل فقط (مع رقم العميل كعنوان فرعي) */}
                   <TableHead className="text-xs font-semibold">{tr(lang, "customer_name")}</TableHead>
+                  {/* العمود 2: رقم الخدمة (مخصص، منفصل عن اسم العميل) */}
+                  <TableHead className="text-xs font-semibold">{tr(lang, "audit_record_no")}</TableHead>
+                  {/* الأعمدة الديناميكية: حقول تفاصيل الخدمة فقط (بدون حقول العميل) */}
                   {tableFields.map((f) => (
                     <TableHead key={f.name} className="text-xs font-semibold whitespace-nowrap">
                       {tr(lang, f.labelKey)}
                     </TableHead>
                   ))}
+                  {/* أعمدة مالية مخصصة: السعر، المدفوع، المتبقي */}
+                  {config.withFinance && (
+                    <>
+                      <TableHead className="text-xs font-semibold whitespace-nowrap">{tr(lang, "price")}</TableHead>
+                      <TableHead className="text-xs font-semibold whitespace-nowrap">{tr(lang, "paid")}</TableHead>
+                      <TableHead className="text-xs font-semibold whitespace-nowrap">{tr(lang, "remaining")}</TableHead>
+                    </>
+                  )}
                   <TableHead className="text-xs font-semibold">{tr(lang, "status")}</TableHead>
                   <TableHead className="text-xs font-semibold text-end">{tr(lang, "actions")}</TableHead>
                 </TableRow>
@@ -607,7 +685,7 @@ export function ServicePage({ config }: Props) {
               <TableBody>
                 {list.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={tableFields.length + 3} className="text-center py-12">
+                    <TableCell colSpan={tableFields.length + 3 + (config.withFinance ? 3 : 0)} className="text-center py-12">
                       <div className="flex flex-col items-center gap-3 text-muted-foreground">
                         <div className="w-14 h-14 rounded-full bg-muted/60 flex items-center justify-center">
                           <Plus className="w-6 h-6" />
@@ -625,36 +703,44 @@ export function ServicePage({ config }: Props) {
                 ) : (
                   list.map((s) => {
                     const sc = statusColors[s.status];
+                    // البحث عن بيانات العميل المرتبط (لعرض رقم العميل الصحيح)
+                    const customer = customers.find((c) => c.id === s.customerId);
                     return (
                       <TableRow key={s.id} className="hover:bg-accent/30">
+                        {/* العمود 1: اسم العميل فقط + رقم العميل كعنوان فرعي (وليس رقم الخدمة) */}
                         <TableCell>
                           <div className="font-medium text-foreground text-sm">{s.customerName}</div>
-                          <div className="text-[11px] text-muted-foreground num">{s.serviceNumber}</div>
+                          <div className="text-[11px] text-muted-foreground num">
+                            {customer?.customerNumber ?? "—"}
+                          </div>
                         </TableCell>
+                        {/* العمود 2: رقم الخدمة فقط (مستقل) */}
+                        <TableCell className="text-xs text-muted-foreground num whitespace-nowrap">
+                          {s.serviceNumber}
+                        </TableCell>
+                        {/* الأعمدة الديناميكية: قيم من s.details أو مصدر مخصص حسب اسم الحقل */}
                         {tableFields.map((f) => {
-                          let val: string | number | undefined;
-                          if (f.name === "price") val = s.price;
-                          else if (f.name === "paid") val = s.paid;
-                          else if (f.name === "remaining") val = s.remaining;
-                          else if (f.name === "currency") val = currencySymbol(s.currency);
-                          else val = s.details?.[f.name];
-                          if (f.name === "price" || f.name === "paid" || f.name === "remaining") {
-                            return (
-                              <TableCell key={f.name} className="text-sm num whitespace-nowrap">
-                                {val !== undefined ? `${Number(val).toLocaleString("en-US")}` : "—"}
-                              </TableCell>
-                            );
-                          }
-                          if (f.type === "select" && f.options && val) {
-                            const opt = f.options.find((o) => o.value === val);
-                            val = opt ? tr(lang, opt.labelKey) : val;
-                          }
+                          const { display, isNumeric } = getFieldValue(f, s);
                           return (
-                            <TableCell key={f.name} className="text-sm text-muted-foreground whitespace-nowrap">
-                              {val ?? "—"}
+                            <TableCell key={f.name} className={isNumeric ? "text-sm num whitespace-nowrap" : "text-sm text-muted-foreground whitespace-nowrap"}>
+                              {display}
                             </TableCell>
                           );
                         })}
+                        {/* أعمدة مالية مخصصة */}
+                        {config.withFinance && (
+                          <>
+                            <TableCell className="text-sm font-bold text-foreground num whitespace-nowrap">
+                              {s.price.toLocaleString("en-US")} {currencySymbol(s.currency)}
+                            </TableCell>
+                            <TableCell className="text-sm num whitespace-nowrap" style={{ color: "var(--pastel-mint-icon)" }}>
+                              {s.paid.toLocaleString("en-US")} {currencySymbol(s.currency)}
+                            </TableCell>
+                            <TableCell className="text-sm num whitespace-nowrap" style={{ color: "var(--pastel-peach-icon)" }}>
+                              {s.remaining.toLocaleString("en-US")} {currencySymbol(s.currency)}
+                            </TableCell>
+                          </>
+                        )}
                         <TableCell>
                           <Badge variant="secondary" className="text-[11px] font-medium gap-1" style={{ background: sc.bg, color: sc.fg }}>
                             {tr(lang, sc.label)}
