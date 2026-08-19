@@ -32,7 +32,63 @@ export async function GET(req: NextRequest) {
   });
 
   if (!invoice) {
-    return new NextResponse("Invoice not found", { status: 404 });
+    // منع عرض قالب فارغ — عرض رسالة واضحة بدلاً منه
+    const html = `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>فواتير غير موجودة</title>
+<style>
+  body { font-family: 'Cairo', Arial, sans-serif; padding: 60px; text-align: center; color: #1F2937; }
+  .alert { max-width: 500px; margin: 0 auto; padding: 30px; border: 2px solid #EF4444; border-radius: 12px; background: #FEF2F2; }
+  .icon { font-size: 48px; color: #EF4444; margin-bottom: 16px; }
+  h1 { color: #EF4444; margin-bottom: 8px; }
+  p { color: #64748B; }
+</style>
+</head>
+<body>
+  <div class="alert">
+    <div class="icon">⚠</div>
+    <h1>بيانات الفاتورة غير موجودة</h1>
+    <p>تعذر إنشاء نسخة الطباعة — الفاتورة المطلوبة غير موجودة أو تم حذفها.</p>
+    <p style="font-size: 11px; color: #94A3B8; margin-top: 20px;">جميع الحقوق محفوظة لدى Sky Link 2026</p>
+  </div>
+</body>
+</html>`;
+    return new NextResponse(html, {
+      status: 404,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
+  }
+
+  // التحقق من اكتمال البيانات الأساسية للفاتورة
+  if (!invoice.invoiceNumber || !invoice.customerId || invoice.totalAmount === undefined) {
+    const html = `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>بيانات الفاتورة غير مكتملة</title>
+<style>
+  body { font-family: 'Cairo', Arial, sans-serif; padding: 60px; text-align: center; color: #1F2937; }
+  .alert { max-width: 500px; margin: 0 auto; padding: 30px; border: 2px solid #F97316; border-radius: 12px; background: #FFF7ED; }
+  .icon { font-size: 48px; color: #F97316; margin-bottom: 16px; }
+  h1 { color: #F97316; margin-bottom: 8px; }
+  p { color: #64748B; }
+</style>
+</head>
+<body>
+  <div class="alert">
+    <div class="icon">⚠</div>
+    <h1>بيانات الفاتورة غير مكتملة</h1>
+    <p>تعذر إنشاء نسخة الطباعة — بيانات الفاتورة غير مكتملة.</p>
+    <p style="font-size: 11px; color: #94A3B8; margin-top: 20px;">جميع الحقوق محفوظة لدى Sky Link 2026</p>
+  </div>
+</body>
+</html>`;
+    return new NextResponse(html, {
+      status: 400,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
   }
 
   // جلب بيانات العميل

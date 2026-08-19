@@ -143,6 +143,11 @@ export function InvoicesPage() {
   };
 
   const printInvoice = (i: Invoice) => {
+    // منع طباعة فواتير فارغة أو غير مكتملة
+    if (!i || !i.id || !i.invoiceNumber) {
+      toast.error(lang === "ar" ? "بيانات الفاتورة غير مكتملة — تعذر إنشاء نسخة الطباعة" : "Invoice data incomplete — cannot generate print view");
+      return;
+    }
     // فتح صفحة طباعة الفاتورة في نافذة جديدة — نظيفة بدون أزرار ×/إلغاء/طباعة
     const url = `/api/print/invoice?id=${i.id}`;
     window.open(url, "_blank", "width=900,height=700,noopener,noreferrer");

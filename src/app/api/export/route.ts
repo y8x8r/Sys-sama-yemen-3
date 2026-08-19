@@ -5,6 +5,12 @@ import { getCurrentUser } from "@/lib/auth";
 /**
  * GET /api/export?type=customers|services|invoices|payments|expenses&period=weekly|monthly|overall&serviceType=<type>&format=excel|pdf
  *
+ * معلمات الفلترة الاختيارية (تُطبَّق على البيانات المُصدَّرة):
+ *   q         — نص البحث
+ *   method    — طريقة الدفع (cash|transfer|wallet) للمدفوعات
+ *   status    — حالة السجل
+ *   serviceType — نوع الخدمة
+ *
  * - Excel: CSV مع BOM لدعم العربية (يفتح في Excel بشكل منظم)
  * - PDF: نص منسق للطباعة (RTL)
  */
@@ -17,12 +23,16 @@ export async function GET(req: NextRequest) {
   const period = searchParams.get("period") ?? "overall";
   const serviceType = searchParams.get("serviceType");
   const format = searchParams.get("format") ?? "excel";
+  const q = searchParams.get("q") ?? "";
+  const methodFilter = searchParams.get("method") ?? "all";
+  const statusFilter = searchParams.get("status") ?? "all";
 
   // حساب الفترة الزمنية
   const now = new Date();
   const from = new Date(now);
   if (period === "weekly") from.setDate(now.getDate() - 7);
   else if (period === "monthly") from.setMonth(now.getMonth() - 1);
+  else if (period === "daily") from.setDate(now.getDate() - 1);
   else from.setFullYear(2020); // overall
 
   // جلب البيانات حسب النوع
@@ -87,34 +97,58 @@ export async function GET(req: NextRequest) {
     title = "قائمة الفواتير";
   } else if (type === "payments") {
     headers = ["رقم السند", "اسم العميل", "رقم الفاتورة", "المبلغ", "العملة", "طريقة الدفع", "الحالة", "التاريخ"];
-    const payments = await db.payment.findMany({
-      where: { receivedAt: { gte: from } },
+    const where: any = { receivedAt: { gte: from } };
+    if (methodFilter !== "all") where.method = methodFilter;
+    if (statusFilter !== "all") where.status = statusFilter;
+    let payments = await db.payment.findMany({
+      where,
       orderBy: { receivedAt: "desc" },
     });
+    if (q) {
+      payments = payments.filter(
+        (p) =>
+          p.paymentNumber.toLowerCase().includes(q.toLowerCase()) ||
+          p.customerName.toLowerCase().includes(q.toLowerCase()) ||
+          (p.invoiceNumber ?? "").toLowerCase().includes(q.toLowerCase())
+      );
+    }
+    const methodLabel = (m: string) => (m === "cash" ? "نقداً" : m === "transfer" ? "حوالة" : "محفظة");
+    const statusLabel = (s: string) => (s === "approved" ? "معتمدة" : s === "reversed" ? "معكوسة" : "قيد المعالجة");
     records = payments.map((p) => [
       p.paymentNumber,
       p.customerName,
       p.invoiceNumber ?? "",
       String(p.amount),
       p.currency,
-      p.method,
-      p.status,
+      methodLabel(p.method),
+      statusLabel(p.status),
       p.receivedAt.toISOString().split("T")[0],
     ]);
     title = "قائمة المدفوعات";
   } else if (type === "expenses") {
     headers = ["رقم المصروف", "غرض الصرف", "المبلغ", "العملة", "طريقة الدفع", "الحالة", "تاريخ الصرف"];
-    const expenses = await db.expense.findMany({
-      where: { paidAt: { gte: from } },
+    const where: any = { paidAt: { gte: from } };
+    if (statusFilter !== "all") where.status = statusFilter;
+    let expenses = await db.expense.findMany({
+      where,
       orderBy: { paidAt: "desc" },
     });
+    if (q) {
+      expenses = expenses.filter(
+        (e) =>
+          e.expenseNumber.toLowerCase().includes(q.toLowerCase()) ||
+          e.category.toLowerCase().includes(q.toLowerCase()) ||
+          e.description.toLowerCase().includes(q.toLowerCase())
+      );
+    }
+    const statusLabel = (s: string) => (s === "approved" ? "معتمد" : s === "cancelled" ? "ملغى" : "قيد المعالجة");
     records = expenses.map((e) => [
       e.expenseNumber,
       e.category,
       String(e.amount),
       e.currency,
-      e.method,
-      e.status,
+      e.method === "cash" ? "نقداً" : e.method === "transfer" ? "حوالة" : "محفظة",
+      statusLabel(e.status),
       e.paidAt.toISOString().split("T")[0],
     ]);
     title = "قائمة المصروفات";

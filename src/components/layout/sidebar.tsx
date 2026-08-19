@@ -130,6 +130,41 @@ export function Sidebar() {
   const expanded = useAppStore((s) => s.expandedSections);
   const setPage = useAppStore((s) => s.setPage);
   const toggleSection = useAppStore((s) => s.toggleSection);
+  const currentUser = useAppStore((s) => s.currentUser);
+  const logout = useAppStore((s) => s.logout);
+
+  // الصلاحيات: الأقسام المسموح بها لكل دور
+  const isManager = currentUser?.role === "manager";
+  // موظف الحجوزات: لا يرى الإعدادات، إعدادات المراقبة، إدارة الموظفين، المالية (الفواتير فقط لا)
+  // المحاسب: لا يرى الإعدادات ولا إدارة الموظفين
+  const allowedGroups = (gKey: string): boolean => {
+    if (isManager) return true;
+    if (currentUser?.role === "accountant") {
+      // المحاسب: الإدارات (قراءة)، المالية، المراقبة — لا الإعدادات ولا إدارة الموظفين
+      if (gKey === "settings") return false;
+      return true;
+    }
+    // موظف الحجوزات: الخدمات + الإدارات (قراءة) + لوحة التحكم فقط
+    if (gKey === "monitoring") return false;
+    if (gKey === "settings") return false;
+    if (gKey === "finance") return false;
+    return true;
+  };
+
+  // فلترة العناصر الفرعية داخل الأقسام حسب الصلاحية
+  const allowedPage = (page: NavPage): boolean => {
+    if (isManager) return true;
+    // موظف الحجوزات لا يرى إدارة الموظفين ولا صلاحيات المستخدمين
+    if (page === "employees" || page === "users_permissions") return false;
+    return true;
+  };
+
+  const handleLogout = async () => {
+    if (!window.confirm(lang === "ar" ? "هل أنت متأكد من تسجيل الخروج؟" : "Are you sure you want to logout?")) return;
+    await logout();
+  };
+
+  const filteredGroups = groups.filter((g) => allowedGroups(g.key));
 
   return (
     <aside
@@ -153,7 +188,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-3">
-        {groups.map((g) => {
+        {filteredGroups.map((g) => {
           const isExpanded = g.flat || expanded[g.key] || g.pages.some((p) => p.page === currentPage);
           const isGroupActive = g.pages.some((p) => p.page === currentPage);
 
@@ -175,6 +210,10 @@ export function Sidebar() {
               </div>
             );
           }
+
+          // فلترة الصفحات الفرعية حسب الصلاحية
+          const filteredPages = g.pages.filter((p) => allowedPage(p.page));
+          if (filteredPages.length === 0) return null;
 
           return (
             <div key={g.key} className="space-y-1.5">
@@ -201,7 +240,7 @@ export function Sidebar() {
 
               {isExpanded && (
                 <div className="space-y-0.5 ms-3 border-s border-sidebar-border ps-2 pt-1">
-                  {g.pages.map((item, idx) => {
+                  {filteredPages.map((item, idx) => {
                     const isActive = currentPage === item.page;
                     return (
                       <div key={item.page}>

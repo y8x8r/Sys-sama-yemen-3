@@ -275,6 +275,7 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
         { value: "work_3m", labelKey: "list_work_3m" },
         { value: "work_self", labelKey: "list_work_self" },
         { value: "work_other", labelKey: "list_work_other" },
+        { value: "other", labelKey: "list_other_visa" },
       ] },
       { name: "visaDuration", labelKey: "f_visa_duration", type: "text" },
       { name: "processingPeriod", labelKey: "f_processing_period", type: "text" },

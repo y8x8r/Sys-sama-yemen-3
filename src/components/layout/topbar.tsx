@@ -240,30 +240,54 @@ export function Topbar() {
                 <p className="text-xs text-muted-foreground">{roleLabel}</p>
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={() => setPage("system_settings")}
-              >
-                <UserIcon className="w-4 h-4 me-2" />
-                {tr(lang, "change_password")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={() => setPage("system_settings")}
-              >
-                <SettingsIcon className="w-4 h-4 me-2" />
-                {tr(lang, "nav_system_settings")}
-              </DropdownMenuItem>
+              {/* تغيير كلمة المرور: المدير العام فقط */}
+              {currentUser?.role === "manager" && (
+                <>
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => setPage("system_settings")}
+                  >
+                    <UserIcon className="w-4 h-4 me-2" />
+                    {tr(lang, "change_password")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => setPage("system_settings")}
+                  >
+                    <SettingsIcon className="w-4 h-4 me-2" />
+                    {tr(lang, "nav_system_settings")}
+                  </DropdownMenuItem>
+                </>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="cursor-pointer text-destructive focus:text-destructive"
-                onClick={() => logout()}
+                onClick={() => {
+                  if (window.confirm(lang === "ar" ? "هل أنت متأكد من تسجيل الخروج؟" : "Are you sure you want to logout?")) {
+                    logout();
+                  }
+                }}
               >
                 <LogOut className="w-4 h-4 me-2" />
                 {tr(lang, "logout")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* زر تسجيل الخروج البارز */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+            onClick={() => {
+              if (window.confirm(lang === "ar" ? "هل أنت متأكد من تسجيل الخروج؟" : "Are you sure you want to logout?")) {
+                logout();
+              }
+            }}
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">{tr(lang, "logout")}</span>
+          </Button>
         </div>
       </div>
     </header>

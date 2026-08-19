@@ -19,17 +19,64 @@ import { VisaExpiryPage } from "@/components/monitoring/visa-expiry-page";
 import { UsersPermissionsPage } from "@/components/settings/users-permissions-page";
 import { SystemSettingsPage } from "@/components/settings/system-settings-page";
 import { Loader2 } from "lucide-react";
+import type { NavPage, Role } from "@/lib/types";
 
 export default function Home() {
   const isAuthed = useAppStore((s) => s.isAuthed);
   const authLoading = useAppStore((s) => s.authLoading);
   const currentPage = useAppStore((s) => s.currentPage);
+  const currentUser = useAppStore((s) => s.currentUser);
   const checkSession = useAppStore((s) => s.checkSession);
+  const setPage = useAppStore((s) => s.setPage);
 
   // التحقق من الجلسة عند تحميل الصفحة
   useEffect(() => {
     checkSession();
   }, [checkSession]);
+
+  // التحقق من الصلاحيات: إعادة توجيه المستخدمين غير المصرح لهم
+  useEffect(() => {
+    if (!isAuthed || !currentUser) return;
+
+    const role = currentUser.role as Role;
+
+    // صفحات محمية: المدير العام فقط
+    const managerOnlyPages: NavPage[] = [
+      "employees",
+      "users_permissions",
+      "system_settings",
+    ];
+
+    // صفحات محمية: المدير العام + المحاسب
+    const accountantAllowed: NavPage[] = [
+      "statistics",
+      "audit_log",
+      "visa_expiry",
+      "revenues_expenses",
+      "payments",
+      "invoices",
+    ];
+
+    // موظف الحجوزات: له حق الوصول إلى لوحة التحكم + الخدمات + العملاء + الوكلاء فقط
+    if (role === "booking_officer") {
+      if (managerOnlyPages.includes(currentPage)) {
+        setPage("dashboard");
+        return;
+      }
+      if (accountantAllowed.includes(currentPage)) {
+        setPage("dashboard");
+        return;
+      }
+    }
+
+    // المحاسب: لا يصل إلى الإعدادات ولا إدارة الموظفين
+    if (role === "accountant") {
+      if (managerOnlyPages.includes(currentPage)) {
+        setPage("revenues_expenses");
+        return;
+      }
+    }
+  }, [isAuthed, currentUser, currentPage, setPage]);
 
   if (authLoading) {
     return (
@@ -45,12 +92,36 @@ export default function Home() {
 
   return (
     <DashboardLayout>
-      <PageRouter page={currentPage} />
+      <PageRouter page={currentPage} role={currentUser?.role as Role} />
     </DashboardLayout>
   );
 }
 
-function PageRouter({ page }: { page: string }) {
+function PageRouter({ page, role }: { page: string; role?: Role }) {
+  // التحقق من الصلاحيات قبل العرض
+  if (role === "booking_officer") {
+    const allowedForBookingOfficer = [
+      "dashboard",
+      "hajj_program", "hajj_regular", "umrah_program", "umrah_regular",
+      "passport_attendance", "passport_without", "flight_ticket",
+      "intl_bus", "intl_car", "local_bus", "local_car",
+      "visa_medical", "visa_tourist", "visa_work", "visa_visit",
+      "shipping", "customs", "security_approval", "medical_report",
+      "travel_insurance", "hotel_booking",
+      "customers", "agents_companies",
+    ];
+    if (!allowedForBookingOfficer.includes(page)) {
+      return <DashboardPage />;
+    }
+  }
+
+  if (role === "accountant") {
+    const blockedForAccountant = ["employees", "users_permissions", "system_settings"];
+    if (blockedForAccountant.includes(page)) {
+      return <RevenuesExpensesPage />;
+    }
+  }
+
   if (serviceConfigs[page]) {
     return <ServicePage config={serviceConfigs[page]} />;
   }

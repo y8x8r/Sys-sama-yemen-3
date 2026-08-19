@@ -192,6 +192,23 @@ export function RevenuesExpensesPage() {
     toast.success(lang === "ar" ? "تم تصدير ملف Excel" : "Excel file exported");
   };
 
+  const exportExpensesPDF = (period: "daily" | "weekly" | "monthly") => {
+    const url = `/api/export?type=expenses&period=${period}&format=pdf`;
+    window.open(url, "_blank");
+    toast.success(lang === "ar" ? "تم فتح تقرير PDF" : "PDF report opened");
+  };
+
+  const exportExpensesExcel = (period: "weekly" | "monthly") => {
+    const url = `/api/export?type=expenses&period=${period}&format=excel`;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `expenses_${period}_${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast.success(lang === "ar" ? "تم تصدير ملف Excel" : "Excel file exported");
+  };
+
   return (
     <div className="space-y-5" dir={lang === "ar" ? "rtl" : "ltr"}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -228,6 +245,50 @@ export function RevenuesExpensesPage() {
                 {tr(lang, "export_weekly")}
               </DropdownMenuItem>
               <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportPDF("monthly")}>
+                <Calendar className="w-4 h-4" />
+                {tr(lang, "export_monthly")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {/* تصدير Excel للمصروفات */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="bg-background gap-2">
+                <FileSpreadsheet className="w-4 h-4" />
+                {lang === "ar" ? "تصدير مصروفات Excel" : "Expenses Excel"}
+                <ChevronDown className="w-3 h-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align={lang === "ar" ? "start" : "end"}>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExpensesExcel("weekly")}>
+                <Calendar className="w-4 h-4" />
+                {tr(lang, "export_weekly")}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExpensesExcel("monthly")}>
+                <Calendar className="w-4 h-4" />
+                {tr(lang, "export_monthly")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {/* تصدير PDF للمصروفات */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="bg-background gap-2">
+                <FileText className="w-4 h-4" />
+                {lang === "ar" ? "تصدير مصروفات PDF" : "Expenses PDF"}
+                <ChevronDown className="w-3 h-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align={lang === "ar" ? "start" : "end"}>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExpensesPDF("daily")}>
+                <Calendar className="w-4 h-4" />
+                {lang === "ar" ? "تقرير يومي" : "Daily Report"}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExpensesPDF("weekly")}>
+                <Calendar className="w-4 h-4" />
+                {tr(lang, "export_weekly")}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExpensesPDF("monthly")}>
                 <Calendar className="w-4 h-4" />
                 {tr(lang, "export_monthly")}
               </DropdownMenuItem>

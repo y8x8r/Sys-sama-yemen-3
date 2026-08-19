@@ -384,6 +384,20 @@ export function ServicePage({ config }: Props) {
             </SelectContent>
           </Select>
           {err && <p className="text-xs text-destructive">{err}</p>}
+          {/* حقل إدخال نوع التأشيرة عند اختيار "أخرى" */}
+          {f.name === "visaType" && val === "other" && (
+            <div className="mt-2 space-y-1.5">
+              <Label className="text-xs font-medium text-foreground">
+                {tr(lang, "f_other_visa_type")} *
+              </Label>
+              <Input
+                value={form.otherVisaType ?? ""}
+                onChange={(e) => setForm({ ...form, otherVisaType: e.target.value })}
+                className="bg-background h-10"
+                placeholder={tr(lang, "enter_visa_type")}
+              />
+            </div>
+          )}
         </div>
       );
     }

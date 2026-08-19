@@ -790,6 +790,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
 }));
 
 // مزامنة الثيم واللغة مع localStorage (للتفضيلات فقط، وليس للبيانات)
+// لا يتم حفظ بيانات المصادقة — يجب تسجيل الدخول مرة أخرى عند إغلاق التبويبة
 if (typeof window !== "undefined") {
   const savedLang = localStorage.getItem("sama_lang") as Lang | null;
   const savedTheme = localStorage.getItem("sama_theme") as Theme | null;
@@ -801,4 +802,20 @@ if (typeof window !== "undefined") {
     if (state.lang) localStorage.setItem("sama_lang", state.lang);
     if (state.theme) localStorage.setItem("sama_theme", state.theme);
   });
+
+  // إجراء أمني: عند إغلاق التبويبة أو المغادرة، يتم إنهاء الجلسة فعلياً
+  // هذا يضمن طلب تسجيل الدخول من جديد عند العودة
+  const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+    const state = useAppStore.getState();
+    if (state.isAuthed) {
+      // إرسال طلب تسجيل خروج فعلي (keepalive لضمان إرساله قبل الإغلاق)
+      fetch("/api/auth/logout", {
+        method: "POST",
+        keepalive: true,
+      }).catch(() => {});
+    }
+  };
+
+  // تطبيق ذلك فقط عند الإغلاق الفعلي للتبويبة
+  window.addEventListener("beforeunload", handleBeforeUnload);
 }

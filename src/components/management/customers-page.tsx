@@ -266,20 +266,19 @@ export function CustomersPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40 hover:bg-muted/40">
-                  <TableHead className="text-xs font-semibold">{tr(lang, "customer_name")}</TableHead>
-                  <TableHead className="text-xs font-semibold">{tr(lang, "customer_number")}</TableHead>
-                  <TableHead className="text-xs font-semibold">{tr(lang, "phone")}</TableHead>
-                  <TableHead className="text-xs font-semibold">{tr(lang, "passport_number")}</TableHead>
-                  <TableHead className="text-xs font-semibold">{tr(lang, "customer_joined")}</TableHead>
-                  <TableHead className="text-xs font-semibold">{tr(lang, "customer_referral")}</TableHead>
-                  <TableHead className="text-xs font-semibold">{tr(lang, "status")}</TableHead>
-                  <TableHead className="text-xs font-semibold text-end">{tr(lang, "actions")}</TableHead>
+                  <TableHead>{tr(lang, "customer_name")}</TableHead>
+                  <TableHead>{tr(lang, "phone")}</TableHead>
+                  <TableHead>{tr(lang, "passport_number")}</TableHead>
+                  <TableHead>{tr(lang, "customer_joined")}</TableHead>
+                  <TableHead>{tr(lang, "customer_referral")}</TableHead>
+                  <TableHead>{tr(lang, "status")}</TableHead>
+                  <TableHead className="text-end">{tr(lang, "actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {list.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12">
+                    <TableCell colSpan={7} className="text-center py-12">
                       <div className="flex flex-col items-center gap-3 text-muted-foreground">
                         <div className="w-14 h-14 rounded-full bg-muted/60 flex items-center justify-center">
                           <Plus className="w-6 h-6" />
@@ -306,7 +305,6 @@ export function CustomersPage() {
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground num">{c.customerNumber}</TableCell>
                         <TableCell className="text-sm text-muted-foreground num">{c.phoneNumber}</TableCell>
                         <TableCell className="text-sm text-muted-foreground num">{c.passportNumber ?? "—"}</TableCell>
                         <TableCell className="text-sm text-muted-foreground num">{c.joinedOn}</TableCell>
@@ -336,7 +334,7 @@ export function CustomersPage() {
         </CardContent>
       </Card>
 
-      {/* Create/Edit dialog */}
+      {/* Create/Edit dialog — بدون حقل رقم الهوية */}
       <Dialog open={open} onOpenChange={handleDialogChange}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
@@ -358,10 +356,6 @@ export function CustomersPage() {
             <div className="space-y-1.5">
               <Label>{tr(lang, "passport_number")}</Label>
               <Input value={form.passportNumber} onChange={(e) => setForm({ ...form, passportNumber: e.target.value })} className="bg-background" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>{tr(lang, "f_national_id")}</Label>
-              <Input value={form.nationalId} onChange={(e) => setForm({ ...form, nationalId: e.target.value })} className="bg-background" />
             </div>
             <div className="space-y-1.5">
               <Label>{tr(lang, "f_card_number")}</Label>
