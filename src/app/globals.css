@@ -316,22 +316,5 @@
   background-color: var(--background);
 }
 
-/* Print styles — إخفاء عناصر الواجهة عند الطباعة */
-@media print {
-  body * {
-    visibility: hidden;
-  }
-  .print\:hidden,
-  .print\:hidden * {
-    display: none !important;
-  }
-  .print\:block,
-  .print\:block * {
-    visibility: visible;
-  }
-  .print\:block {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-  }
-}
+/* Print styles — تم إزالة قواعد @media print القديمة التي كانت تخفي المحتوى.
+   الطباعة الآن تتم عبر صفحة مستقلة /api/print/invoice بدلاً من window.print() على لوحة التحكم. */
