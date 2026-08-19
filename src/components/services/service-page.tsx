@@ -71,6 +71,7 @@ import {
   AlertCircle,
   UserPlus,
   FileText,
+  Ban,
 } from "lucide-react";
 
 export interface FieldDef {
@@ -115,6 +116,7 @@ export function ServicePage({ config }: Props) {
   const addService = useAppStore((s) => s.addService);
   const updateService = useAppStore((s) => s.updateService);
   const cancelService = useAppStore((s) => s.cancelService);
+  const deleteService = useAppStore((s) => s.deleteService);
   const setPage = useAppStore((s) => s.setPage);
 
   const [open, setOpen] = useState(false);
@@ -124,6 +126,7 @@ export function ServicePage({ config }: Props) {
   const [viewRecord, setViewRecord] = useState<null | (typeof services)[0]>(null);
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [form, setForm] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -303,6 +306,17 @@ export function ServicePage({ config }: Props) {
       toast.success(lang === "ar" ? "تم إلغاء المعاملة" : "Transaction cancelled");
     } catch (err) {
       toast.error(lang === "ar" ? "فشل إلغاء المعاملة" : "Failed to cancel transaction");
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await deleteService(deleteId);
+      setDeleteId(null);
+      toast.success(lang === "ar" ? "تم حذف المعاملة نهائياً" : "Transaction deleted permanently");
+    } catch (err) {
+      toast.error(lang === "ar" ? "فشل الحذف" : "Failed to delete");
     }
   };
 
@@ -676,8 +690,8 @@ export function ServicePage({ config }: Props) {
                 <TableRow className="bg-muted/40 hover:bg-muted/40">
                   {/* العمود 1: اسم العميل فقط (مع رقم العميل كعنوان فرعي) */}
                   <TableHead className="text-xs font-semibold">{tr(lang, "customer_name")}</TableHead>
-                  {/* العمود 2: رقم الخدمة (مخصص، منفصل عن اسم العميل) */}
-                  <TableHead className="text-xs font-semibold">{tr(lang, "audit_record_no")}</TableHead>
+                  {/* العمود 2: رقم هاتف العميل (مجلوب تلقائياً من ملف العميل) */}
+                  <TableHead className="text-xs font-semibold">{tr(lang, "phone")}</TableHead>
                   {/* الأعمدة الديناميكية: حقول تفاصيل الخدمة فقط (بدون حقول العميل) */}
                   {tableFields.map((f) => (
                     <TableHead key={f.name} className="text-xs font-semibold whitespace-nowrap">
@@ -721,16 +735,16 @@ export function ServicePage({ config }: Props) {
                     const customer = customers.find((c) => c.id === s.customerId);
                     return (
                       <TableRow key={s.id} className="hover:bg-accent/30">
-                        {/* العمود 1: اسم العميل فقط + رقم العميل كعنوان فرعي (وليس رقم الخدمة) */}
+                        {/* العمود 1: اسم العميل فقط + رقم العميل كعنوان فرعي */}
                         <TableCell>
                           <div className="font-medium text-foreground text-sm">{s.customerName}</div>
                           <div className="text-[11px] text-muted-foreground num">
                             {customer?.customerNumber ?? "—"}
                           </div>
                         </TableCell>
-                        {/* العمود 2: رقم الخدمة فقط (مستقل) */}
+                        {/* العمود 2: رقم هاتف العميل (مجلوب تلقائياً من ملف العميل) */}
                         <TableCell className="text-xs text-muted-foreground num whitespace-nowrap">
-                          {s.serviceNumber}
+                          {customer?.phoneNumber ?? "—"}
                         </TableCell>
                         {/* الأعمدة الديناميكية: قيم من s.details أو مصدر مخصص حسب اسم الحقل */}
                         {tableFields.map((f) => {
@@ -766,14 +780,21 @@ export function ServicePage({ config }: Props) {
                           )}
                         </TableCell>
                         <TableCell className="text-end">
-                          {/* ترتيب الإجراءات: معاينة ← حذف ← تعديل ← طباعة */}
+                          {/* ترتيب الإجراءات: معاينة ← إلغاء ← حذف ← تعديل ← طباعة */}
                           <div className="flex items-center justify-end gap-1">
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={tr(lang, "action_preview")} onClick={() => setViewRecord(s)}>
                               <Eye className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title={tr(lang, "action_delete")} onClick={() => { setCancelId(s.id); setCancelReason(""); }}>
-                              <Trash2 className="w-4 h-4" />
+                            {/* إلغاء المعاملة — يغيّر الحالة إلى ملغية، السجل يبقى محفوظاً */}
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-orange-500" title={lang === "ar" ? "إلغاء المعاملة" : "Cancel Transaction"} onClick={() => { setCancelId(s.id); setCancelReason(""); }}>
+                              <Ban className="w-4 h-4" />
                             </Button>
+                            {/* حذف المعاملة — يحذف السجل نهائياً، للمدير العام فقط */}
+                            {currentUser?.role === "manager" && (
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title={lang === "ar" ? "حذف المعاملة نهائياً" : "Delete Permanently"} onClick={() => setDeleteId(s.id)}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={tr(lang, "action_edit")} onClick={() => openEdit(s)}>
                               <Pencil className="w-4 h-4" />
                             </Button>
@@ -915,7 +936,7 @@ export function ServicePage({ config }: Props) {
           <AlertDialogHeader>
             <AlertDialogTitle>{lang === "ar" ? "إلغاء المعاملة" : "Cancel Transaction"}</AlertDialogTitle>
             <AlertDialogDescription>
-              {lang === "ar" ? "سيتم تغيير حالة المعاملة إلى «ملغية» بدلاً من حذفها نهائياً. أدخل سبب الإلغاء (إلزامي)." : "The transaction will be marked as cancelled instead of deleted. Enter a cancel reason (required)."}
+              {lang === "ar" ? "سيتم تغيير حالة المعاملة إلى «ملغية» مع بقاء السجل محفوظاً. أدخل سبب الإلغاء (إلزامي)." : "The transaction will be marked as cancelled. The record will be preserved. Enter a cancel reason (required)."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-2">
@@ -930,10 +951,33 @@ export function ServicePage({ config }: Props) {
             <AlertDialogCancel>{tr(lang, "cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmCancel}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-orange-500 text-white hover:bg-orange-600"
               disabled={!cancelReason.trim()}
             >
-              {tr(lang, "action_delete")}
+              {lang === "ar" ? "إلغاء المعاملة" : "Cancel Transaction"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete dialog — حذف نهائي (المدير العام فقط) */}
+      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">{lang === "ar" ? "حذف المعاملة نهائياً" : "Delete Transaction Permanently"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {lang === "ar"
+                ? "⚠ تحذير: سيتم حذف هذه المعاملة نهائياً من النظام مع كل ما يرتبط بها (الفاتورة والمدفوعات). لا يمكن التراجع عن هذا الإجراء. هل أنت متأكد تماماً؟"
+                : "⚠ Warning: This transaction will be permanently deleted along with its invoice and payments. This action cannot be undone. Are you absolutely sure?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tr(lang, "cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {lang === "ar" ? "نعم، احذف نهائياً" : "Yes, Delete Permanently"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

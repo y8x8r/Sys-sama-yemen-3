@@ -30,6 +30,7 @@ import {
   ArrowRightLeft,
   UserCog,
   Cog,
+  LogOut,
 } from "lucide-react";
 
 interface NavItem {
@@ -266,9 +267,20 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="px-4 py-3 border-t border-sidebar-border">
-        <div className="text-[11px] text-muted-foreground text-center leading-relaxed">
+      {/* Footer — زر تسجيل الخروج + حقوق النشر */}
+      <div className="border-t border-sidebar-border">
+        <button
+          onClick={() => {
+            if (window.confirm(lang === "ar" ? "هل أنت متأكد من تسجيل الخروج؟" : "Are you sure you want to logout?")) {
+              logout();
+            }
+          }}
+          className="nav-item relative w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/5 border-t border-sidebar-border"
+        >
+          <LogOut className="nav-icon w-5 h-5" />
+          <span>{tr(lang, "logout")}</span>
+        </button>
+        <div className="px-4 py-2 text-[11px] text-muted-foreground text-center leading-relaxed border-t border-sidebar-border/50">
           {tr(lang, "footer_copyright")}
         </div>
       </div>

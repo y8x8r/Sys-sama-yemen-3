@@ -133,16 +133,53 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 /**
- * DELETE /api/services/[id] — إلغاء المعاملة (وليس حذفها نهائياً)
+ * DELETE /api/services/[id] — إلغاء أو حذف المعاملة
  *
- * يغيّر الحالة إلى "ملغية" مع طلب سبب الإلغاء الإلزامي.
- * يحفظ سبب الإلغاء ووقت الإلغاء واسم المستخدم المنفذ.
+ * وضعان:
+ *   - الافتراضي (إلغاء): يغيّر الحالة إلى "ملغية" مع سبب إلزامي، يبقى السجل محفوظاً
+ *   - hardDelete=true: يحذف السجل فعلياً من النظام مع كل ما يرتبط به
+ *
+ * الحذف متاح للمدير العام فقط.
  */
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser(req);
   if (!user) return NextResponse.json({ ok: false, error: "not_authed" }, { status: 401 });
 
   const { id } = await params;
+  const url = new URL(req.url);
+  const hardDelete = url.searchParams.get("hardDelete") === "true";
+
+  const existing = await db.serviceRecord.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
+  }
+
+  // الحذف الفعلي — للمدير العام فقط
+  if (hardDelete) {
+    if (user.role !== "manager") {
+      return NextResponse.json({ ok: false, error: "only_manager_can_delete" }, { status: 403 });
+    }
+
+    try {
+      await db.$transaction(async (tx) => {
+        // حذف الدفعات المرتبطة
+        await tx.payment.deleteMany({ where: { serviceId: id } });
+        // حذف الفاتورة المرتبطة
+        await tx.invoice.deleteMany({ where: { serviceId: id } });
+        // حذف المعاملة نفسها
+        await tx.serviceRecord.delete({ where: { id } });
+      });
+
+      await logAudit(user, "حذف معاملة", "services", `حذف المعاملة ${existing.serviceNumber} نهائياً`, "service", id);
+
+      return NextResponse.json({ ok: true });
+    } catch (err) {
+      console.error("Hard delete service error:", err);
+      return NextResponse.json({ ok: false, error: "delete_failed", details: String(err) }, { status: 500 });
+    }
+  }
+
+  // الإلغاء (الافتراضي) — يتطلب سبب
   const body = await req.json().catch(() => ({}));
   const cancelReason = body.cancelReason?.trim();
 
@@ -151,11 +188,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       { ok: false, error: "cancel_reason_required" },
       { status: 400 }
     );
-  }
-
-  const existing = await db.serviceRecord.findUnique({ where: { id } });
-  if (!existing) {
-    return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   }
 
   try {

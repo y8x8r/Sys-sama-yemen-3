@@ -246,6 +246,7 @@ interface AppState {
   addService: (s: Omit<ServiceRecord, "id" | "serviceNumber" | "createdAt" | "remaining">) => Promise<ServiceRecord | null>;
   updateService: (id: string, s: Partial<ServiceRecord>) => Promise<void>;
   cancelService: (id: string, reason: string) => Promise<void>;
+  deleteService: (id: string) => Promise<void>;
   // Actions — Invoices
   updateInvoice: (id: string, i: Partial<Invoice>) => Promise<void>;
   deleteInvoice: (id: string) => Promise<void>;
@@ -706,6 +707,18 @@ export const useAppStore = create<AppState>()((set, get) => ({
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cancelReason: reason }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        await get().fetchAllData();
+      }
+    } catch {}
+  },
+
+  deleteService: async (id) => {
+    try {
+      const res = await fetch(`/api/services/${id}?hardDelete=true`, {
+        method: "DELETE",
       });
       const data = await res.json();
       if (data.ok) {

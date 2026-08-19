@@ -273,21 +273,6 @@ export function Topbar() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          {/* زر تسجيل الخروج البارز */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
-            onClick={() => {
-              if (window.confirm(lang === "ar" ? "هل أنت متأكد من تسجيل الخروج؟" : "Are you sure you want to logout?")) {
-                logout();
-              }
-            }}
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">{tr(lang, "logout")}</span>
-          </Button>
         </div>
       </div>
     </header>
