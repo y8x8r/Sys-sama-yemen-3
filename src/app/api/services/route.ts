@@ -62,6 +62,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req);
   if (!user) return NextResponse.json({ ok: false, error: "not_authed" }, { status: 401 });
+  // المحاسب لا يستطيع إنشاء معاملات خدمات
+  if (user.role === "accountant") {
+    return NextResponse.json({ ok: false, error: "forbidden", message: "403 — غير مصرح للمحاسب بإنشاء معاملات الخدمات" }, { status: 403 });
+  }
 
   const body = await req.json();
   const { serviceType, customerId, price, paid, currency, paymentMethod, transferNo, status, notes, details } = body;

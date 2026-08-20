@@ -25,6 +25,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req);
   if (!user) return NextResponse.json({ ok: false, error: "not_authed" }, { status: 401 });
+  // المحاسب لا يستطيع إضافة وكلاء
+  if (user.role === "accountant") {
+    return NextResponse.json({ ok: false, error: "forbidden", message: "403 — غير مصرح للمحاسب بإدارة الوكلاء" }, { status: 403 });
+  }
 
   const { officeName, agentNumber, serviceType } = await req.json();
   if (!officeName?.trim()) {

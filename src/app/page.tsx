@@ -116,8 +116,16 @@ function PageRouter({ page, role }: { page: string; role?: Role }) {
   }
 
   if (role === "accountant") {
-    const blockedForAccountant = ["employees", "users_permissions", "system_settings"];
-    if (blockedForAccountant.includes(page)) {
+    // المحاسب: مسموح فقط بالوحدات المالية
+    const allowedForAccountant = [
+      "dashboard",
+      "revenues_expenses",
+      "payments",
+      "invoices",
+      "statistics",
+      "audit_log",
+    ];
+    if (!allowedForAccountant.includes(page)) {
       return <RevenuesExpensesPage />;
     }
   }

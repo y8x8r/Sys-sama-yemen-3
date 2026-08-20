@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getCurrentUser, logAudit, genNumber, nextSeq } from "@/lib/auth";
+import { getCurrentUser, logAudit, genNumber, nextSeq, checkModuleAccess } from "@/lib/auth";
 
 /** GET /api/customers — قائمة العملاء مع بحث */
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req);
   if (!user) return NextResponse.json({ ok: false, error: "not_authed" }, { status: 401 });
+  // المحاسب: قراءة فقط للعملاء المرتبطين بالفواتير — مسموح
+  // لكن لا يستطيع إنشاء/تعديل/حذف عملاء
 
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q") ?? "";
@@ -42,10 +44,13 @@ export async function GET(req: NextRequest) {
   });
 }
 
-/** POST /api/customers — إضافة عميل جديد */
+/** POST /api/customers — إضافة عميل جديد (مدير عام + موظف حجوزات فقط) */
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req);
   if (!user) return NextResponse.json({ ok: false, error: "not_authed" }, { status: 401 });
+  // المحاسب لا يستطيع إنشاء عملاء
+  const accessCheck = checkModuleAccess(user, "customers");
+  if (accessCheck && user.role === "accountant") return accessCheck;
 
   const body = await req.json();
   const { fullName, phoneNumber, passportNumber, nationalId, cardNumber, referralSource } = body;

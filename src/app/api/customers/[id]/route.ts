@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser, logAudit } from "@/lib/auth";
 
-/** PUT /api/customers/[id] — تعديل عميل */
+/** PUT /api/customers/[id] — تعديل عميل (مدير عام + موظف حجوزات فقط) */
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser(req);
   if (!user) return NextResponse.json({ ok: false, error: "not_authed" }, { status: 401 });
+  // المحاسب لا يستطيع تعديل بيانات العملاء
+  if (user.role === "accountant") {
+    return NextResponse.json({ ok: false, error: "forbidden", message: "403 — غير مصرح للمحاسب بتعديل بيانات العملاء" }, { status: 403 });
+  }
 
   const { id } = await params;
   const body = await req.json();
@@ -47,10 +51,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   });
 }
 
-/** DELETE /api/customers/[id] — حذف عميل (مع الحفاظ على السجل التاريخي) */
+/** DELETE /api/customers/[id] — حذف عميل (مدير عام + موظف حجوزات فقط) */
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser(req);
   if (!user) return NextResponse.json({ ok: false, error: "not_authed" }, { status: 401 });
+  // المحاسب لا يستطيع حذف العملاء
+  if (user.role === "accountant") {
+    return NextResponse.json({ ok: false, error: "forbidden", message: "403 — غير مصرح للمحاسب بحذف العملاء" }, { status: 403 });
+  }
 
   const { id } = await params;
   const existing = await db.customer.findUnique({ where: { id } });

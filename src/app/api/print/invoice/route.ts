@@ -324,13 +324,37 @@ export async function GET(req: NextRequest) {
   }
   /* منع ظهور عناصر المتصفح */
   @media print {
-    body { padding: 0; }
+    body { padding: 0; margin: 0; background: white; }
     .invoice-page { width: 100%; min-height: auto; padding: 15mm 12mm; margin: 0; }
-    @page { size: A4; margin: 0; }
+    .print-button { display: none !important; }
+    .no-print { display: none !important; }
+    @page { size: A4; margin: 10mm; }
   }
+  /* زر الطباعة */
+  .print-button {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    background: linear-gradient(135deg, #7C3AED 0%, #A855F7 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+    z-index: 9999;
+    font-family: 'Cairo', Arial, sans-serif;
+  }
+  .print-button:hover { opacity: 0.9; }
 </style>
 </head>
 <body>
+  <!-- زر الطباعة — يختفي عند الطباعة -->
+  <button class="print-button no-print" onclick="window.print()">
+    🖨️ طباعة / حفظ PDF
+  </button>
   <div class="invoice-page">
     <!-- رأس الفاتورة -->
     <div class="invoice-header">
@@ -419,6 +443,15 @@ export async function GET(req: NextRequest) {
       <div class="footer-copyright">جميع الحقوق محفوظة لدى Sky Link 2026</div>
     </div>
   </div>
+  <script>
+    // فتح مربع الطباعة الرسمي تلقائياً بعد تحميل الصفحة
+    // يسمح للمستخدم باختيار «حفظ كملف PDF» وتحديد موقع الحفظ
+    window.onload = function() {
+      setTimeout(function() {
+        window.print();
+      }, 500);
+    };
+  </script>
 </body>
 </html>`;
 

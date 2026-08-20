@@ -5,6 +5,10 @@ import { getCurrentUser, logAudit } from "@/lib/auth";
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser(req);
   if (!user) return NextResponse.json({ ok: false, error: "not_authed" }, { status: 401 });
+  // المحاسب لا يستطيع تعديل شركات النقل
+  if (user.role === "accountant") {
+    return NextResponse.json({ ok: false, error: "forbidden", message: "403 — غير مصرح للمحاسب بإدارة شركات النقل" }, { status: 403 });
+  }
   const { id } = await params;
   const body = await req.json();
 
@@ -27,6 +31,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser(req);
   if (!user) return NextResponse.json({ ok: false, error: "not_authed" }, { status: 401 });
+  // المحاسب لا يستطيع حذف شركات النقل
+  if (user.role === "accountant") {
+    return NextResponse.json({ ok: false, error: "forbidden", message: "403 — غير مصرح للمحاسب بإدارة شركات النقل" }, { status: 403 });
+  }
   const { id } = await params;
   const existing = await db.transportCompany.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });

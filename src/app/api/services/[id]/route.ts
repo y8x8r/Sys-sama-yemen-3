@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser, logAudit } from "@/lib/auth";
 
-/** PUT /api/services/[id] — تعديل معاملة + تزامن الدفعة والفاتورة */
+/** PUT /api/services/[id] — تعديل معاملة + تزامن الدفعة والفاتورة (مدير عام + موظف حجوزات) */
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser(req);
   if (!user) return NextResponse.json({ ok: false, error: "not_authed" }, { status: 401 });
+  // المحاسب لا يستطيع تعديل معاملات الخدمات
+  if (user.role === "accountant") {
+    return NextResponse.json({ ok: false, error: "forbidden", message: "403 — غير مصرح للمحاسب بتعديل معاملات الخدمات" }, { status: 403 });
+  }
 
   const { id } = await params;
   const body = await req.json();
@@ -144,6 +148,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser(req);
   if (!user) return NextResponse.json({ ok: false, error: "not_authed" }, { status: 401 });
+  // المحاسب لا يستطيع إلغاء أو حذف معاملات الخدمات
+  if (user.role === "accountant") {
+    return NextResponse.json({ ok: false, error: "forbidden", message: "403 — غير مصرح للمحاسب بإلغاء أو حذف معاملات الخدمات" }, { status: 403 });
+  }
 
   const { id } = await params;
   const url = new URL(req.url);

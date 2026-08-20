@@ -136,16 +136,17 @@ export function Sidebar() {
 
   // الصلاحيات: الأقسام المسموح بها لكل دور
   const isManager = currentUser?.role === "manager";
-  // موظف الحجوزات: لا يرى الإعدادات، إعدادات المراقبة، إدارة الموظفين، المالية (الفواتير فقط لا)
-  // المحاسب: لا يرى الإعدادات ولا إدارة الموظفين
+  // المحاسب: المالية + المراقبة فقط (لا الخدمات، لا الإدارات، لا الإعدادات)
   const allowedGroups = (gKey: string): boolean => {
     if (isManager) return true;
     if (currentUser?.role === "accountant") {
-      // المحاسب: الإدارات (قراءة)، المالية، المراقبة — لا الإعدادات ولا إدارة الموظفين
+      // المحاسب: لوحة التحكم + المالية + المراقبة فقط
+      if (gKey === "services") return false;
+      if (gKey === "management") return false;
       if (gKey === "settings") return false;
-      return true;
+      return true; // dashboard + finance + monitoring
     }
-    // موظف الحجوزات: الخدمات + الإدارات (قراءة) + لوحة التحكم فقط
+    // موظف الحجوزات: الخدمات + الإدارات + لوحة التحكم فقط
     if (gKey === "monitoring") return false;
     if (gKey === "settings") return false;
     if (gKey === "finance") return false;
@@ -157,6 +158,10 @@ export function Sidebar() {
     if (isManager) return true;
     // موظف الحجوزات لا يرى إدارة الموظفين ولا صلاحيات المستخدمين
     if (page === "employees" || page === "users_permissions") return false;
+    // المحاسب لا يرى العملاء ولا الوكلاء (فقط الوحدات المالية)
+    if (currentUser?.role === "accountant") {
+      if (page === "customers" || page === "agents_companies") return false;
+    }
     return true;
   };
 
