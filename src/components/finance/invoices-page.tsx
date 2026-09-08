@@ -212,9 +212,13 @@ export function InvoicesPage() {
                   <Calendar className="w-4 h-4" />
                   {tr(lang, "export_monthly")}
                 </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExcel("yearly")}>
+                  <Calendar className="w-4 h-4" />
+                  {lang === "ar" ? "تصدير سنوي" : "Yearly Export"}
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            {/* تصدير PDF — يومي/أسبوعي/شهري */}
+            {/* تصدير PDF — يومي/أسبوعي/شهري/سنوي */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="bg-background gap-2">
@@ -235,6 +239,10 @@ export function InvoicesPage() {
                 <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportPDF("monthly")}>
                   <Calendar className="w-4 h-4" />
                   {tr(lang, "export_monthly")}
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportPDF("yearly")}>
+                  <Calendar className="w-4 h-4" />
+                  {lang === "ar" ? "تصدير سنوي" : "Yearly Export"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
