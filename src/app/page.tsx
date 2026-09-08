@@ -29,10 +29,26 @@ export default function Home() {
   const checkSession = useAppStore((s) => s.checkSession);
   const setPage = useAppStore((s) => s.setPage);
 
-  // التحقق من الجلسة عند تحميل الصفحة
+  // التحقق من الجلسة عند تحميل الصفحة — Cookie يستمر عبر F5
   useEffect(() => {
     checkSession();
-  }, [checkSession]);
+  }, []);
+
+  // منع زر الرجوع من الخروج من النظام
+  useEffect(() => {
+    if (!isAuthed) return;
+
+    // دفع حالة أولية لمنع الرجوع لصفحة الدخول
+    window.history.pushState({ sama: "app" }, "", "/");
+
+    const handlePopState = () => {
+      // إذا حاول المستخدم الرجوع، نعيد دفع الحالة ليبقى في النظام
+      window.history.pushState({ sama: "app" }, "", "/");
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [isAuthed]);
 
   // التحقق من الصلاحيات: إعادة توجيه المستخدمين غير المصرح لهم
   useEffect(() => {
@@ -40,14 +56,12 @@ export default function Home() {
 
     const role = currentUser.role as Role;
 
-    // صفحات محمية: المدير العام فقط
     const managerOnlyPages: NavPage[] = [
       "employees",
       "users_permissions",
       "system_settings",
     ];
 
-    // صفحات محمية: المدير العام + المحاسب
     const accountantAllowed: NavPage[] = [
       "statistics",
       "audit_log",
@@ -57,7 +71,6 @@ export default function Home() {
       "invoices",
     ];
 
-    // موظف الحجوزات: له حق الوصول إلى لوحة التحكم + الخدمات + العملاء + الوكلاء فقط
     if (role === "booking_officer") {
       if (managerOnlyPages.includes(currentPage)) {
         setPage("dashboard");
@@ -69,7 +82,6 @@ export default function Home() {
       }
     }
 
-    // المحاسب: لا يصل إلى الإعدادات ولا إدارة الموظفين
     if (role === "accountant") {
       if (managerOnlyPages.includes(currentPage)) {
         setPage("revenues_expenses");
@@ -98,7 +110,6 @@ export default function Home() {
 }
 
 function PageRouter({ page, role }: { page: string; role?: Role }) {
-  // التحقق من الصلاحيات قبل العرض
   if (role === "booking_officer") {
     const allowedForBookingOfficer = [
       "dashboard",
@@ -116,7 +127,6 @@ function PageRouter({ page, role }: { page: string; role?: Role }) {
   }
 
   if (role === "accountant") {
-    // المحاسب: مسموح فقط بالوحدات المالية
     const allowedForAccountant = [
       "dashboard",
       "revenues_expenses",

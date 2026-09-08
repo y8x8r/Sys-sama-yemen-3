@@ -133,6 +133,8 @@ export function Sidebar() {
   const toggleSection = useAppStore((s) => s.toggleSection);
   const currentUser = useAppStore((s) => s.currentUser);
   const logout = useAppStore((s) => s.logout);
+  const mobileSidebarOpen = useAppStore((s) => s.mobileSidebarOpen);
+  const setMobileSidebarOpen = useAppStore((s) => s.setMobileSidebarOpen);
 
   // الصلاحيات: الأقسام المسموح بها لكل دور
   const isManager = currentUser?.role === "manager";
@@ -173,10 +175,23 @@ export function Sidebar() {
   const filteredGroups = groups.filter((g) => allowedGroups(g.key));
 
   return (
-    <aside
-      dir={lang === "ar" ? "rtl" : "ltr"}
-      className="hidden lg:flex flex-col w-64 bg-sidebar border-s border-sidebar-border h-screen sticky top-0 z-30"
-    >
+    <>
+      {/* Overlay للجوال — يغلق القائمة عند النقر خارجها */}
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
+      <aside
+        dir={lang === "ar" ? "rtl" : "ltr"}
+        className={cn(
+          "flex flex-col w-72 bg-sidebar border-s border-sidebar-border h-screen z-50 transition-transform duration-300",
+          "fixed inset-y-0 inset-inline-start-0 lg:sticky lg:top-0 lg:w-64 lg:translate-x-0",
+          mobileSidebarOpen ? "translate-x-0" : "translate-x-full rtl:-translate-x-full lg:translate-x-0"
+        )}
+      >
       {/* Brand */}
       <div className="px-5 py-5 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
@@ -290,5 +305,6 @@ export function Sidebar() {
         </div>
       </div>
     </aside>
+    </>
   );
 }

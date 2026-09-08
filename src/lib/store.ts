@@ -222,6 +222,9 @@ interface AppState {
   toggleTheme: () => void;
   setPage: (p: NavPage) => void;
   toggleSection: (s: string) => void;
+  // Mobile sidebar
+  mobileSidebarOpen: boolean;
+  setMobileSidebarOpen: (open: boolean) => void;
   // Actions — Data loading
   fetchAllData: () => Promise<void>;
   fetchDashboardStats: () => Promise<void>;
@@ -266,6 +269,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
   theme: "light",
   currentPage: "dashboard",
   expandedSections: { services: false, management: false, finance: false, monitoring: false, settings: false },
+  mobileSidebarOpen: false,
   customers: [],
   employees: [],
   users: [],
@@ -288,6 +292,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ username, password }),
       });
       const data = await res.json();
@@ -304,8 +309,9 @@ export const useAppStore = create<AppState>()((set, get) => ({
 
   logout: async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     } catch {}
+    sessionStorage.removeItem("sama_current_page");
     set({
       isAuthed: false,
       currentUser: null,
@@ -323,10 +329,20 @@ export const useAppStore = create<AppState>()((set, get) => ({
 
   checkSession: async () => {
     try {
-      const res = await fetch("/api/auth/login");
+      // credentials: "include" يضمن إرسال cookie الجلسة مع كل طلب
+      const res = await fetch("/api/auth/login", { credentials: "include" });
       const data = await res.json();
       if (data.ok && data.user) {
-        set({ isAuthed: true, currentUser: data.user, authLoading: false });
+        // استعادة الصفحة المحفوظة من sessionStorage (للحفاظ على موضع المستخدم بعد F5)
+        const savedPage = typeof window !== "undefined"
+          ? sessionStorage.getItem("sama_current_page") as NavPage | null
+          : null;
+        set({
+          isAuthed: true,
+          currentUser: data.user,
+          authLoading: false,
+          currentPage: savedPage || "dashboard",
+        });
         await get().fetchAllData();
       } else {
         set({ isAuthed: false, currentUser: null, authLoading: false });
@@ -370,11 +386,12 @@ export const useAppStore = create<AppState>()((set, get) => ({
   setLang: (l) => set({ lang: l }),
   setTheme: (t) => set({ theme: t }),
   toggleTheme: () => set((s) => ({ theme: s.theme === "light" ? "dark" : "light" })),
-  setPage: (p) => set({ currentPage: p }),
+  setPage: (p) => set({ currentPage: p, mobileSidebarOpen: false }),
   toggleSection: (s) =>
     set((st) => ({
       expandedSections: { ...st.expandedSections, [s]: !st.expandedSections[s] },
     })),
+  setMobileSidebarOpen: (open) => set({ mobileSidebarOpen: open }),
 
   fetchAllData: async () => {
     set({ dataLoading: true });
@@ -803,32 +820,21 @@ export const useAppStore = create<AppState>()((set, get) => ({
 }));
 
 // مزامنة الثيم واللغة مع localStorage (للتفضيلات فقط، وليس للبيانات)
-// لا يتم حفظ بيانات المصادقة — يجب تسجيل الدخول مرة أخرى عند إغلاق التبويبة
+// حفظ الصفحة الحالية في sessionStorage لاستعادتها عند التحديث (F5)
 if (typeof window !== "undefined") {
   const savedLang = localStorage.getItem("sama_lang") as Lang | null;
   const savedTheme = localStorage.getItem("sama_theme") as Theme | null;
   if (savedLang) useAppStore.setState({ lang: savedLang });
   if (savedTheme) useAppStore.setState({ theme: savedTheme });
 
+  // استعادة الصفحة الحالية من sessionStorage (للحفاظ على موضع المستخدم بعد F5)
+  const savedPage = sessionStorage.getItem("sama_current_page") as NavPage | null;
+  if (savedPage) useAppStore.setState({ currentPage: savedPage });
+
   // حفظ التفضيلات عند التغيير
   useAppStore.subscribe((state) => {
     if (state.lang) localStorage.setItem("sama_lang", state.lang);
     if (state.theme) localStorage.setItem("sama_theme", state.theme);
+    if (state.currentPage) sessionStorage.setItem("sama_current_page", state.currentPage);
   });
-
-  // إجراء أمني: عند إغلاق التبويبة أو المغادرة، يتم إنهاء الجلسة فعلياً
-  // هذا يضمن طلب تسجيل الدخول من جديد عند العودة
-  const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-    const state = useAppStore.getState();
-    if (state.isAuthed) {
-      // إرسال طلب تسجيل خروج فعلي (keepalive لضمان إرساله قبل الإغلاق)
-      fetch("/api/auth/logout", {
-        method: "POST",
-        keepalive: true,
-      }).catch(() => {});
-    }
-  };
-
-  // تطبيق ذلك فقط عند الإغلاق الفعلي للتبويبة
-  window.addEventListener("beforeunload", handleBeforeUnload);
 }

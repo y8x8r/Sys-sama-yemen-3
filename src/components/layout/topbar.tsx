@@ -23,6 +23,7 @@ import {
   Settings as SettingsIcon,
   ChevronLeft,
   CheckCheck,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -75,6 +76,8 @@ export function Topbar() {
   const visaExpiry = useAppStore((s) => s.visaExpiry);
   const markNotificationRead = useAppStore((s) => s.markNotificationRead);
   const markAllNotificationsRead = useAppStore((s) => s.markAllNotificationsRead);
+  const setMobileSidebarOpen = useAppStore((s) => s.setMobileSidebarOpen);
+  const mobileSidebarOpen = useAppStore((s) => s.mobileSidebarOpen);
 
   const roleLabel =
     currentUser?.role === "manager"
@@ -108,8 +111,14 @@ export function Topbar() {
       <div className="flex items-center justify-between h-16 px-4 lg:px-6 gap-4">
         {/* Right side (in RTL): breadcrumb + page title */}
         <div className="flex items-center gap-3 min-w-0">
-          <Button variant="ghost" size="icon" className="lg:hidden">
-            <Menu className="h-5 w-5" />
+          {/* زر القائمة للجوال — يفتح الشريط الجانبي */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+          >
+            {mobileSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
           <div className="flex items-center gap-2 text-sm min-w-0">
             <span className="text-muted-foreground hidden sm:inline">

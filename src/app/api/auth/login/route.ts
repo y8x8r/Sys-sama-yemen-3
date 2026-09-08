@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
     });
 
     // تعيين cookie للجلسة (httpOnly للأمان)
+    // maxAge أسبوع — يستمر عبر F5 وإعادة فتح المتصفح
     response.cookies.set("sama_session", sessionId, {
       httpOnly: true,
       sameSite: "lax",
