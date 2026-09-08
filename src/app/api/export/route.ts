@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import ExcelJS from "exceljs";
 
 /**
  * GET /api/export?type=customers|services|invoices|payments|expenses&period=weekly|monthly|overall&serviceType=<type>&format=excel|pdf
@@ -32,6 +33,7 @@ export async function GET(req: NextRequest) {
   const from = new Date(now);
   if (period === "weekly") from.setDate(now.getDate() - 7);
   else if (period === "monthly") from.setMonth(now.getMonth() - 1);
+  else if (period === "yearly") from.setFullYear(now.getFullYear() - 1);
   else if (period === "daily") from.setDate(now.getDate() - 1);
   else from.setFullYear(2020); // overall
 
@@ -156,7 +158,7 @@ export async function GET(req: NextRequest) {
 
   if (format === "pdf") {
     // توليد PDF بصيغة HTML قابل للطباعة (RTL)
-    const periodLabel = period === "weekly" ? "تقرير أسبوعي" : period === "monthly" ? "تقرير شهري" : period === "daily" ? "تقرير يومي" : "تقرير شامل";
+    const periodLabel = period === "weekly" ? "تقرير أسبوعي" : period === "monthly" ? "تقرير شهري" : period === "yearly" ? "تقرير سنوي" : period === "daily" ? "تقرير يومي" : "تقرير شامل";
     const dateRange = `من ${from.toISOString().split("T")[0]} إلى ${now.toISOString().split("T")[0]}`;
 
     // ترميز اسم الملف لتجنب أحرف غير ASCII في Content-Disposition (يحدث HTTP 500)
@@ -208,17 +210,65 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // Excel (CSV مع BOM)
-  const bom = "\uFEFF";
-  const csv = [headers, ...records].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-  const csvContent = bom + csv;
-  const safeCsvName = `report_${type}_${period}.csv`;
-  const encodedCsvName = encodeURIComponent(safeCsvName);
+  // Excel — XLSX حقيقي يدعمه Excel و Google Sheets و LibreOffice
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet(title, {
+    views: [{ rightToLeft: true }], // دعم RTL
+  });
 
-  return new NextResponse(csvContent, {
+  // إضافة صف العناوين
+  const headerRow = worksheet.addRow(headers);
+  headerRow.eachCell((cell) => {
+    cell.font = { bold: true, size: 12, color: { argb: "FF6D28D9" } };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFF3E8FF" },
+    };
+    cell.alignment = { horizontal: "right", vertical: "middle" };
+    cell.border = {
+      top: { style: "thin" },
+      bottom: { style: "thin" },
+      left: { style: "thin" },
+      right: { style: "thin" },
+    };
+  });
+
+  // إضافة صفوف البيانات
+  for (const record of records) {
+    const row = worksheet.addRow(record);
+    row.eachCell((cell) => {
+      cell.alignment = { horizontal: "right", vertical: "middle" };
+      cell.border = {
+        top: { style: "thin", color: { argb: "FFE2E8F0" } },
+        bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
+        left: { style: "thin", color: { argb: "FFE2E8F0" } },
+        right: { style: "thin", color: { argb: "FFE2E8F0" } },
+      };
+    });
+  }
+
+  // ضبط عرض الأعمدة تلقائياً
+  worksheet.columns.forEach((column) => {
+    let maxLength = 0;
+    if (column.eachCell) {
+      column.eachCell({ includeEmpty: true }, (cell) => {
+        const len = cell.value ? String(cell.value).length : 10;
+        if (len > maxLength) maxLength = len;
+      });
+      column.width = Math.min(maxLength + 4, 50);
+    }
+  });
+
+  // تحويل إلى Buffer
+  const buffer = await workbook.xlsx.writeBuffer();
+  const safeXlsxName = `report_${type}_${period}.xlsx`;
+  const encodedXlsxName = encodeURIComponent(safeXlsxName);
+
+  return new NextResponse(buffer, {
     headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${encodedCsvName}"; filename*=UTF-8''${encodedCsvName}`,
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": `attachment; filename="${encodedXlsxName}"; filename*=UTF-8''${encodedXlsxName}`,
     },
   });
 }

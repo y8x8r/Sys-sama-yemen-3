@@ -174,35 +174,35 @@ export function RevenuesExpensesPage() {
     }
   };
 
-  const exportPDF = (period: "daily" | "weekly" | "monthly") => {
+  const exportPDF = (period: "daily" | "weekly" | "monthly" | "yearly") => {
     // تصدير الحسابات المالية والمدفوعات إلى PDF
     const url = `/api/export?type=payments&period=${period}&format=pdf`;
     window.open(url, "_blank");
     toast.success(lang === "ar" ? "تم فتح تقرير PDF" : "PDF report opened");
   };
 
-  const exportExcel = (period: "weekly" | "monthly") => {
+  const exportExcel = (period: "weekly" | "monthly" | "yearly") => {
     const url = `/api/export?type=expenses&period=${period}&format=excel`;
     const a = document.createElement("a");
     a.href = url;
-    a.download = `expenses_${period}_${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `expenses_${period}_${new Date().toISOString().split("T")[0]}.xlsx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     toast.success(lang === "ar" ? "تم تصدير ملف Excel" : "Excel file exported");
   };
 
-  const exportExpensesPDF = (period: "daily" | "weekly" | "monthly") => {
+  const exportExpensesPDF = (period: "daily" | "weekly" | "monthly" | "yearly") => {
     const url = `/api/export?type=expenses&period=${period}&format=pdf`;
     window.open(url, "_blank");
     toast.success(lang === "ar" ? "تم فتح تقرير PDF" : "PDF report opened");
   };
 
-  const exportExpensesExcel = (period: "weekly" | "monthly") => {
+  const exportExpensesExcel = (period: "weekly" | "monthly" | "yearly") => {
     const url = `/api/export?type=expenses&period=${period}&format=excel`;
     const a = document.createElement("a");
     a.href = url;
-    a.download = `expenses_${period}_${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `expenses_${period}_${new Date().toISOString().split("T")[0]}.xlsx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -268,6 +268,10 @@ export function RevenuesExpensesPage() {
                 <Calendar className="w-4 h-4" />
                 {tr(lang, "export_monthly")}
               </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExpensesExcel("yearly")}>
+                <Calendar className="w-4 h-4" />
+                {lang === "ar" ? "تصدير سنوي" : "Yearly Export"}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           {/* تصدير PDF للمصروفات */}
@@ -291,6 +295,10 @@ export function RevenuesExpensesPage() {
               <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExpensesPDF("monthly")}>
                 <Calendar className="w-4 h-4" />
                 {tr(lang, "export_monthly")}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExpensesPDF("yearly")}>
+                <Calendar className="w-4 h-4" />
+                {lang === "ar" ? "تصدير سنوي" : "Yearly Export"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

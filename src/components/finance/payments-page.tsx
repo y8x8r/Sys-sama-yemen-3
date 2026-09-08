@@ -82,7 +82,7 @@ export function PaymentsPage() {
     return parts.length > 0 ? parts.join(" | ") : "0";
   };
 
-  const exportPDF = (period: "daily" | "weekly" | "monthly" | "overall") => {
+  const exportPDF = (period: "daily" | "weekly" | "monthly" | "yearly" | "overall") => {
     // تصدير البيانات المفلترة فقط إلى PDF
     const params = new URLSearchParams({
       type: "payments",
@@ -97,7 +97,7 @@ export function PaymentsPage() {
     toast.success(lang === "ar" ? "تم فتح تقرير PDF" : "PDF report opened");
   };
 
-  const exportExcel = (period: "weekly" | "monthly") => {
+  const exportExcel = (period: "weekly" | "monthly" | "yearly") => {
     const params = new URLSearchParams({
       type: "payments",
       period,
@@ -109,7 +109,7 @@ export function PaymentsPage() {
     const url = `/api/export?${params.toString()}`;
     const a = document.createElement("a");
     a.href = url;
-    a.download = `payments_${period}_${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `payments_${period}_${new Date().toISOString().split("T")[0]}.xlsx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -143,6 +143,10 @@ export function PaymentsPage() {
                 <Calendar className="w-4 h-4" />
                 {tr(lang, "export_monthly")}
               </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExcel("yearly")}>
+                <Calendar className="w-4 h-4" />
+                {lang === "ar" ? "تصدير سنوي" : "Yearly Export"}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <DropdownMenu>
@@ -165,6 +169,10 @@ export function PaymentsPage() {
               <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportPDF("monthly")}>
                 <Calendar className="w-4 h-4" />
                 {tr(lang, "export_monthly")}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportPDF("yearly")}>
+                <Calendar className="w-4 h-4" />
+                {lang === "ar" ? "تصدير سنوي" : "Yearly Export"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

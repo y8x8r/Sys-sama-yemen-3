@@ -127,13 +127,12 @@ function PageRouter({ page, role }: { page: string; role?: Role }) {
   }
 
   if (role === "accountant") {
+    // المحاسب: المالية فقط (لا المراقبة)
     const allowedForAccountant = [
       "dashboard",
       "revenues_expenses",
       "payments",
       "invoices",
-      "statistics",
-      "audit_log",
     ];
     if (!allowedForAccountant.includes(page)) {
       return <RevenuesExpensesPage />;

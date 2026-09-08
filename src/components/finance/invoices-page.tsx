@@ -154,18 +154,18 @@ export function InvoicesPage() {
     toast.success(lang === "ar" ? "تم فتح نسخة الطباعة" : "Print view opened");
   };
 
-  const exportExcel = (period: "weekly" | "monthly") => {
+  const exportExcel = (period: "weekly" | "monthly" | "yearly") => {
     const url = `/api/export?type=invoices&period=${period}&format=excel`;
     const a = document.createElement("a");
     a.href = url;
-    a.download = `invoices_${period}_${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `invoices_${period}_${new Date().toISOString().split("T")[0]}.xlsx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     toast.success(lang === "ar" ? "تم تصدير ملف Excel" : "Excel file exported");
   };
 
-  const exportPDF = (period: "weekly" | "monthly" | "daily") => {
+  const exportPDF = (period: "weekly" | "monthly" | "yearly" | "daily") => {
     const url = `/api/export?type=invoices&period=${period}&format=pdf`;
     window.open(url, "_blank");
     toast.success(lang === "ar" ? "تم فتح تقرير PDF" : "PDF report opened");

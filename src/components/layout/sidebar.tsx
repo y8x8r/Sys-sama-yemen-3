@@ -142,11 +142,12 @@ export function Sidebar() {
   const allowedGroups = (gKey: string): boolean => {
     if (isManager) return true;
     if (currentUser?.role === "accountant") {
-      // المحاسب: لوحة التحكم + المالية + المراقبة فقط
+      // المحاسب: لوحة التحكم + المالية فقط (لا المراقبة، لا الخدمات، لا الإدارات، لا الإعدادات)
       if (gKey === "services") return false;
       if (gKey === "management") return false;
       if (gKey === "settings") return false;
-      return true; // dashboard + finance + monitoring
+      if (gKey === "monitoring") return false;
+      return true; // dashboard + finance فقط
     }
     // موظف الحجوزات: الخدمات + الإدارات + لوحة التحكم فقط
     if (gKey === "monitoring") return false;
