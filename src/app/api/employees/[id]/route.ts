@@ -3,6 +3,84 @@ import { db } from "@/lib/db";
 import { getCurrentUser, logAudit } from "@/lib/auth";
 
 /**
+ * PUT /api/employees/[id] — تعديل بيانات الموظف (المدير العام فقط)
+ *
+ * يسمح بتعديل: الاسم، اسم المستخدم، كلمة المرور فقط.
+ * لا يسمح بتعديل الصلاحيات أو الأدوار.
+ */
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getCurrentUser(req);
+  if (!user) return NextResponse.json({ ok: false, error: "not_authed" }, { status: 401 });
+
+  if (user.role !== "manager") {
+    return NextResponse.json({ ok: false, error: "only_manager_can_edit" }, { status: 403 });
+  }
+
+  const { id } = await params;
+  const body = await req.json();
+  const { fullName, username, password } = body;
+
+  // البحث عن الموظف
+  const employee = await db.employee.findUnique({ where: { id } });
+  if (!employee) {
+    return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
+  }
+
+  // البحث عن المستخدم المرتبط
+  const linkedUser = await db.user.findFirst({ where: { employeeId: id } });
+
+  try {
+    await db.$transaction(async (tx) => {
+      // 1. تعديل اسم الموظف
+      if (fullName?.trim()) {
+        await tx.employee.update({
+          where: { id },
+          data: { fullName: fullName.trim() },
+        });
+      }
+
+      // 2. تعديل بيانات المستخدم المرتبط
+      if (linkedUser) {
+        const updateData: any = {};
+
+        // تعديل اسم المستخدم — مع التحقق من عدم تكراره (للمستخدمين النشطين فقط)
+        if (username?.trim() && username.trim() !== linkedUser.username) {
+          const existing = await tx.user.findFirst({
+            where: { username: { equals: username.trim() }, isActive: true, id: { not: linkedUser.id } },
+          });
+          if (existing) {
+            throw new Error("username_exists");
+          }
+          updateData.username = username.trim();
+        }
+
+        // تعديل كلمة المرور
+        if (password && password.length >= 4) {
+          updateData.passwordHash = password;
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          await tx.user.update({
+            where: { id: linkedUser.id },
+            data: updateData,
+          });
+        }
+      }
+    });
+
+    await logAudit(user, "تعديل موظف", "users", `تعديل بيانات الموظف: ${employee.fullName} (${employee.employeeNumber})`, "employee", id);
+
+    return NextResponse.json({ ok: true });
+  } catch (err: any) {
+    if (err?.message === "username_exists") {
+      return NextResponse.json({ ok: false, error: "username_exists" }, { status: 400 });
+    }
+    console.error("Update employee error:", err);
+    return NextResponse.json({ ok: false, error: "update_failed" }, { status: 500 });
+  }
+}
+
+/**
  * DELETE /api/employees/[id] — حذف موظف نهائياً مع إلغاء جميع صلاحياته
  *
  * يقوم بـ:

@@ -45,6 +45,7 @@ import { toast } from "sonner";
 import {
   Plus,
   Trash2,
+  Pencil,
   Shield,
   KeyRound,
   UserCog,
@@ -64,6 +65,8 @@ export function EmployeesPage() {
   const deleteEmployee = useAppStore((s) => s.deleteEmployee);
 
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState({
     fullName: "",
@@ -71,9 +74,16 @@ export function EmployeesPage() {
     role: "booking_officer" as Role,
     password: "",
   });
+  const [editForm, setEditForm] = useState({
+    fullName: "",
+    username: "",
+    password: "",
+  });
   const [showPwd, setShowPwd] = useState(false);
+  const [showEditPwd, setShowEditPwd] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
 
   const isManager = currentUser?.role === "manager";
 
@@ -129,6 +139,48 @@ export function EmployeesPage() {
     } catch (err) {
       toast.error(lang === "ar" ? "فشل الحذف" : "Failed to delete");
     }
+  };
+
+  const openEdit = (e: any) => {
+    const linkedUser = users.find((u: any) => u.employeeId === e.id);
+    setEditForm({
+      fullName: e.fullName,
+      username: linkedUser?.username ?? "",
+      password: "",
+    });
+    setEditId(e.id);
+    setEditOpen(true);
+  };
+
+  const submitEdit = async () => {
+    if (!editId) return;
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/employees/${editId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          fullName: editForm.fullName,
+          username: editForm.username,
+          password: editForm.password || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast.success(lang === "ar" ? "تم تعديل بيانات الموظف" : "Employee updated");
+        setEditOpen(false);
+        setEditId(null);
+        // تحديث البيانات
+        window.location.reload();
+      } else {
+        const msg = data.error === "username_exists" ? tr(lang, "err_username_exists") : lang === "ar" ? "فشل التعديل" : "Failed";
+        toast.error(msg);
+      }
+    } catch {
+      toast.error(lang === "ar" ? "فشل التعديل" : "Failed");
+    }
+    setEditSaving(false);
   };
 
   if (!isManager) {
@@ -191,9 +243,14 @@ export function EmployeesPage() {
                         <TableCell>{linkedUser && <Badge variant="secondary" className={roleColor(linkedUser.role)}>{roleLabel(linkedUser.role)}</Badge>}</TableCell>
                         <TableCell>{linkedUser && <Badge variant="secondary" className={linkedUser.isActive ? "bg-pastel-mint text-pastel-mint" : "bg-muted text-muted-foreground"}>{linkedUser.isActive ? tr(lang, "active") : tr(lang, "inactive")}</Badge>}</TableCell>
                         <TableCell className="text-end">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title={tr(lang, "action_delete")} onClick={() => setDeleteId(e.id)}>
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={lang === "ar" ? "تعديل" : "Edit"} onClick={() => openEdit(e)}>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title={tr(lang, "action_delete")} onClick={() => setDeleteId(e.id)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -247,6 +304,43 @@ export function EmployeesPage() {
             <Button variant="outline" onClick={() => setOpen(false)}>{tr(lang, "cancel")}</Button>
             <Button onClick={submit} disabled={saving} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              {tr(lang, "save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* تعديل بيانات الموظف — الاسم + اسم المستخدم + كلمة المرور فقط */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <Pencil className="w-5 h-5 text-primary" />
+              {lang === "ar" ? "تعديل بيانات الموظف" : "Edit Employee"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-1.5">
+              <Label>{tr(lang, "f_employee_name")} *</Label>
+              <Input value={editForm.fullName} onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })} className="bg-background" placeholder={lang === "ar" ? "الاسم الكامل" : "Full name"} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{tr(lang, "f_username")} *</Label>
+              <Input value={editForm.username} onChange={(e) => setEditForm({ ...editForm, username: e.target.value })} className="bg-background num" placeholder="username" dir="ltr" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{lang === "ar" ? "كلمة المرور الجديدة (اتركها فارغة لعدم التغيير)" : "New Password (leave empty to keep)"}</Label>
+              <div className="relative">
+                <Input type={showEditPwd ? "text" : "password"} value={editForm.password} onChange={(e) => setEditForm({ ...editForm, password: e.target.value })} className="bg-background pe-9" dir="ltr" placeholder="••••••" />
+                <button type="button" onClick={() => setShowEditPwd(!showEditPwd)} className="absolute inset-y-0 end-3 my-auto text-muted-foreground hover:text-foreground">{showEditPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">{lang === "ar" ? "اتركها فارغة إذا كنت لا تريد تغيير كلمة المرور." : "Leave empty if you don't want to change the password."}</p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setEditOpen(false)}>{tr(lang, "cancel")}</Button>
+            <Button onClick={submitEdit} disabled={editSaving} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2">
+              {editSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
               {tr(lang, "save")}
             </Button>
           </DialogFooter>

@@ -67,9 +67,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // التحقق من عدم تكرار اسم المستخدم
+  // التحقق من عدم تكرار اسم المستخدم — فقط للمستخدمين النشطين
+  // المستخدمون المحذوفون/المعطلون لا يمنعون إعادة استخدام اسم المستخدم
   const exists = await db.user.findFirst({
-    where: { username: { equals: username.trim() } },
+    where: { username: { equals: username.trim() }, isActive: true },
   });
   if (exists) {
     return NextResponse.json({ ok: false, error: "username_exists" }, { status: 400 });
