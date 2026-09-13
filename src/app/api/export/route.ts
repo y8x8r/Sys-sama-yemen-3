@@ -28,14 +28,26 @@ export async function GET(req: NextRequest) {
   const methodFilter = searchParams.get("method") ?? "all";
   const statusFilter = searchParams.get("status") ?? "all";
 
+  // معلمات التاريخ المخصص
+  const customFrom = searchParams.get("fromDate");
+  const customTo = searchParams.get("toDate");
+
   // حساب الفترة الزمنية
   const now = new Date();
-  const from = new Date(now);
-  if (period === "weekly") from.setDate(now.getDate() - 7);
+  let from = new Date(now);
+  if (customFrom) {
+    from = new Date(customFrom);
+  } else if (period === "weekly") from.setDate(now.getDate() - 7);
   else if (period === "monthly") from.setMonth(now.getMonth() - 1);
   else if (period === "yearly") from.setFullYear(now.getFullYear() - 1);
   else if (period === "daily") from.setDate(now.getDate() - 1);
   else from.setFullYear(2020); // overall
+
+  let toDate = new Date(now);
+  if (customTo) {
+    toDate = new Date(customTo);
+    toDate.setHours(23, 59, 59, 999); // نهاية اليوم
+  }
 
   // جلب البيانات حسب النوع
   let records: any[] = [];
@@ -45,7 +57,7 @@ export async function GET(req: NextRequest) {
   if (type === "customers") {
     headers = ["اسم العميل", "رقم العميل", "رقم الهاتف", "رقم الجواز", "رقم الهوية", "تاريخ الانضمام", "كيف عرف عنّا", "الحالة"];
     const customers = await db.customer.findMany({
-      where: { createdAt: { gte: from } },
+      where: { createdAt: { gte: from, lte: toDate } },
       orderBy: { createdAt: "desc" },
     });
     records = customers.map((c) => [
@@ -63,7 +75,7 @@ export async function GET(req: NextRequest) {
     headers = ["اسم العميل", "رقم المعاملة", "نوع الخدمة", "السعر", "المدفوع", "المتبقي", "العملة", "الحالة", "التاريخ"];
     const services = await db.serviceRecord.findMany({
       where: {
-        createdAt: { gte: from },
+        createdAt: { gte: from, lte: toDate },
         ...(serviceType && serviceType !== "all" ? { serviceType } : {}),
       },
       orderBy: { createdAt: "desc" },
@@ -83,7 +95,7 @@ export async function GET(req: NextRequest) {
   } else if (type === "invoices") {
     headers = ["رقم الفاتورة", "اسم العميل", "الإجمالي", "المدفوع", "المتبقي", "العملة", "الحالة", "التاريخ"];
     const invoices = await db.invoice.findMany({
-      where: { issuedAt: { gte: from } },
+      where: { issuedAt: { gte: from, lte: toDate } },
       orderBy: { issuedAt: "desc" },
     });
     records = invoices.map((i) => [
@@ -99,7 +111,7 @@ export async function GET(req: NextRequest) {
     title = "قائمة الفواتير";
   } else if (type === "payments") {
     headers = ["رقم السند", "اسم العميل", "رقم الفاتورة", "المبلغ", "العملة", "طريقة الدفع", "الحالة", "التاريخ"];
-    const where: any = { receivedAt: { gte: from } };
+    const where: any = { receivedAt: { gte: from, lte: toDate } };
     if (methodFilter !== "all") where.method = methodFilter;
     if (statusFilter !== "all") where.status = statusFilter;
     let payments = await db.payment.findMany({
@@ -129,7 +141,7 @@ export async function GET(req: NextRequest) {
     title = "قائمة المدفوعات";
   } else if (type === "expenses") {
     headers = ["رقم المصروف", "غرض الصرف", "المبلغ", "العملة", "طريقة الدفع", "الحالة", "تاريخ الصرف"];
-    const where: any = { paidAt: { gte: from } };
+    const where: any = { paidAt: { gte: from, lte: toDate } };
     if (statusFilter !== "all") where.status = statusFilter;
     let expenses = await db.expense.findMany({
       where,
@@ -158,8 +170,8 @@ export async function GET(req: NextRequest) {
 
   if (format === "pdf") {
     // توليد PDF بصيغة HTML قابل للطباعة (RTL)
-    const periodLabel = period === "weekly" ? "تقرير أسبوعي" : period === "monthly" ? "تقرير شهري" : period === "yearly" ? "تقرير سنوي" : period === "daily" ? "تقرير يومي" : "تقرير شامل";
-    const dateRange = `من ${from.toISOString().split("T")[0]} إلى ${now.toISOString().split("T")[0]}`;
+    const periodLabel = period === "weekly" ? "تقرير أسبوعي" : period === "monthly" ? "تقرير شهري" : period === "yearly" ? "تقرير سنوي" : period === "daily" ? "تقرير يومي" : period === "custom" ? "تقرير مخصص" : "تقرير شامل";
+    const dateRange = `من ${from.toISOString().split("T")[0]} إلى ${toDate.toISOString().split("T")[0]}`;
 
     // ترميز اسم الملف لتجنب أحرف غير ASCII في Content-Disposition (يحدث HTTP 500)
     const safeFilename = `report_${type}_${period}.html`;

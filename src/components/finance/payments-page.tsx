@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -28,6 +29,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   Search,
@@ -97,7 +106,35 @@ export function PaymentsPage() {
     toast.success(lang === "ar" ? "تم فتح تقرير PDF" : "PDF report opened");
   };
 
-  const exportExcel = (period: "weekly" | "monthly" | "yearly") => {
+  
+  const exportCustomExcel = (type: string) => {
+    if (!customFromDate || !customToDate) {
+      toast.error(lang === "ar" ? "يرجى تحديد التاريخ من وإلى" : "Please select from and to dates");
+      return;
+    }
+    const url = `/api/export?type=${type}&period=custom&format=excel&fromDate=${customFromDate}&toDate=${customToDate}`;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `report_custom_${customFromDate}_to_${customToDate}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setCustomDateOpen(false);
+    toast.success(lang === "ar" ? "تم تصدير ملف Excel" : "Excel file exported");
+  };
+
+  const exportCustomPDF = (type: string) => {
+    if (!customFromDate || !customToDate) {
+      toast.error(lang === "ar" ? "يرجى تحديد التاريخ من وإلى" : "Please select from and to dates");
+      return;
+    }
+    const url = `/api/export?type=${type}&period=custom&format=pdf&fromDate=${customFromDate}&toDate=${customToDate}`;
+    window.open(url, "_blank");
+    setCustomDateOpen(false);
+    toast.success(lang === "ar" ? "تم فتح تقرير PDF" : "PDF report opened");
+  };
+
+const exportExcel = (period: "weekly" | "monthly" | "yearly") => {
     const params = new URLSearchParams({
       type: "payments",
       period,
@@ -146,6 +183,10 @@ export function PaymentsPage() {
               <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExcel("yearly")}>
                 <Calendar className="w-4 h-4" />
                 {lang === "ar" ? "تصدير سنوي" : "Yearly Export"}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => setCustomDateOpen(true)}>
+                <Calendar className="w-4 h-4" />
+                {lang === "ar" ? "تصدير حسب التاريخ" : "Custom Date Export"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -287,6 +328,39 @@ export function PaymentsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* تصدير حسب التاريخ — نافذة منبثقة */}
+      <Dialog open={customDateOpen} onOpenChange={setCustomDateOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">
+              {lang === "ar" ? "تصدير حسب التاريخ" : "Export by Date Range"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-1.5">
+              <Label>{lang === "ar" ? "من تاريخ" : "From Date"}</Label>
+              <Input type="date" value={customFromDate} onChange={(e) => setCustomFromDate(e.target.value)} className="bg-background" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{lang === "ar" ? "إلى تاريخ" : "To Date"}</Label>
+              <Input type="date" value={customToDate} onChange={(e) => setCustomToDate(e.target.value)} className="bg-background" />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setCustomDateOpen(false)}>{tr(lang, "cancel")}</Button>
+            <Button onClick={() => exportCustomExcel("payments")} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2">
+              <FileSpreadsheet className="w-4 h-4" />
+              {tr(lang, "export_excel")}
+            </Button>
+            <Button onClick={() => exportCustomPDF("payments")} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2">
+              <FileText className="w-4 h-4" />
+              {tr(lang, "export_pdf")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

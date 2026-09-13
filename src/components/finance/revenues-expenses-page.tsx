@@ -80,6 +80,9 @@ export function RevenuesExpensesPage() {
   const [saving, setSaving] = useState(false);
   const [chartCurrency, setChartCurrency] = useState<"SAR" | "USD" | "YER">("SAR");
   const [formDirty, setFormDirty] = useState(false);
+  const [customDateOpen, setCustomDateOpen] = useState(false);
+  const [customFromDate, setCustomFromDate] = useState("");
+  const [customToDate, setCustomToDate] = useState("");
 
   // إيرادات اليوم مفصولة حسب العملة
   const todayRevenueByCurrency: Record<string, number> = { SAR: 0, YER: 0, USD: 0 };
@@ -226,7 +229,7 @@ export function RevenuesExpensesPage() {
               <SelectItem value="overall">{tr(lang, "overall")}</SelectItem>
             </SelectContent>
           </Select>
-          {/* تصدير PDF — يومي/أسبوعي/شهري */}
+          {/* تصدير PDF — يومي/أسبوعي/شهري/سنوي */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="bg-background gap-2">
@@ -248,6 +251,10 @@ export function RevenuesExpensesPage() {
                 <Calendar className="w-4 h-4" />
                 {tr(lang, "export_monthly")}
               </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportPDF("yearly")}>
+                <Calendar className="w-4 h-4" />
+                {lang === "ar" ? "تصدير سنوي" : "Yearly Export"}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           {/* تصدير Excel للمصروفات */}
@@ -255,7 +262,7 @@ export function RevenuesExpensesPage() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="bg-background gap-2">
                 <FileSpreadsheet className="w-4 h-4" />
-                {lang === "ar" ? "تصدير مصروفات Excel" : "Expenses Excel"}
+                {tr(lang, "export_excel")}
                 <ChevronDown className="w-3 h-3" />
               </Button>
             </DropdownMenuTrigger>
@@ -269,34 +276,6 @@ export function RevenuesExpensesPage() {
                 {tr(lang, "export_monthly")}
               </DropdownMenuItem>
               <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExpensesExcel("yearly")}>
-                <Calendar className="w-4 h-4" />
-                {lang === "ar" ? "تصدير سنوي" : "Yearly Export"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {/* تصدير PDF للمصروفات */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="bg-background gap-2">
-                <FileText className="w-4 h-4" />
-                {lang === "ar" ? "تصدير مصروفات PDF" : "Expenses PDF"}
-                <ChevronDown className="w-3 h-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align={lang === "ar" ? "start" : "end"}>
-              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExpensesPDF("daily")}>
-                <Calendar className="w-4 h-4" />
-                {lang === "ar" ? "تقرير يومي" : "Daily Report"}
-              </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExpensesPDF("weekly")}>
-                <Calendar className="w-4 h-4" />
-                {tr(lang, "export_weekly")}
-              </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExpensesPDF("monthly")}>
-                <Calendar className="w-4 h-4" />
-                {tr(lang, "export_monthly")}
-              </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExpensesPDF("yearly")}>
                 <Calendar className="w-4 h-4" />
                 {lang === "ar" ? "تصدير سنوي" : "Yearly Export"}
               </DropdownMenuItem>

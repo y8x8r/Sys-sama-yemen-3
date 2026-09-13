@@ -133,6 +133,9 @@ export function ServicePage({ config }: Props) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [formDirty, setFormDirty] = useState(false);
+  const [customDateOpen, setCustomDateOpen] = useState(false);
+  const [customFromDate, setCustomFromDate] = useState("");
+  const [customToDate, setCustomToDate] = useState("");
 
   const list = useMemo(() => {
     let l = services.filter((s) => s.serviceType === config.serviceType);
@@ -334,7 +337,35 @@ export function ServicePage({ config }: Props) {
     setViewRecord(null);
   };
 
-  const exportExcel = (period: "weekly" | "monthly" | "yearly") => {
+  
+  const exportCustomExcel = (type: string) => {
+    if (!customFromDate || !customToDate) {
+      toast.error(lang === "ar" ? "يرجى تحديد التاريخ من وإلى" : "Please select from and to dates");
+      return;
+    }
+    const url = `/api/export?type=${type}&period=custom&format=excel&fromDate=${customFromDate}&toDate=${customToDate}`;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `report_custom_${customFromDate}_to_${customToDate}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setCustomDateOpen(false);
+    toast.success(lang === "ar" ? "تم تصدير ملف Excel" : "Excel file exported");
+  };
+
+  const exportCustomPDF = (type: string) => {
+    if (!customFromDate || !customToDate) {
+      toast.error(lang === "ar" ? "يرجى تحديد التاريخ من وإلى" : "Please select from and to dates");
+      return;
+    }
+    const url = `/api/export?type=${type}&period=custom&format=pdf&fromDate=${customFromDate}&toDate=${customToDate}`;
+    window.open(url, "_blank");
+    setCustomDateOpen(false);
+    toast.success(lang === "ar" ? "تم فتح تقرير PDF" : "PDF report opened");
+  };
+
+const exportExcel = (period: "weekly" | "monthly" | "yearly") => {
     // تنزيل ملف Excel حقيقي عبر API
     const url = `/api/export?type=services&serviceType=${config.serviceType}&period=${period}&format=excel`;
     const a = document.createElement("a");
@@ -407,8 +438,8 @@ export function ServicePage({ config }: Props) {
             </SelectContent>
           </Select>
           {err && <p className="text-xs text-destructive">{err}</p>}
-          {/* حقل إدخال نوع التأشيرة عند اختيار "أخرى" */}
-          {f.name === "visaType" && val === "other" && (
+          {/* حقل إدخال نوع التأشيرة عند اختيار "إضافة نوع تأشيرة جديد" */}
+          {f.name === "visaType" && val === "work_other" && (
             <div className="mt-2 space-y-1.5">
               <Label className="text-xs font-medium text-foreground">
                 {tr(lang, "f_other_visa_type")} *
@@ -630,6 +661,10 @@ export function ServicePage({ config }: Props) {
               <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExcel("yearly")}>
                 <Calendar className="w-4 h-4" />
                 {lang === "ar" ? "تصدير سنوي" : "Yearly Export"}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => setCustomDateOpen(true)}>
+                <Calendar className="w-4 h-4" />
+                {lang === "ar" ? "تصدير حسب التاريخ" : "Custom Date Export"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -999,6 +1034,39 @@ export function ServicePage({ config }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* تصدير حسب التاريخ — نافذة منبثقة */}
+      <Dialog open={customDateOpen} onOpenChange={setCustomDateOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">
+              {lang === "ar" ? "تصدير حسب التاريخ" : "Export by Date Range"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-1.5">
+              <Label>{lang === "ar" ? "من تاريخ" : "From Date"}</Label>
+              <Input type="date" value={customFromDate} onChange={(e) => setCustomFromDate(e.target.value)} className="bg-background" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{lang === "ar" ? "إلى تاريخ" : "To Date"}</Label>
+              <Input type="date" value={customToDate} onChange={(e) => setCustomToDate(e.target.value)} className="bg-background" />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setCustomDateOpen(false)}>{tr(lang, "cancel")}</Button>
+            <Button onClick={() => exportCustomExcel("services")} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2">
+              <FileSpreadsheet className="w-4 h-4" />
+              {tr(lang, "export_excel")}
+            </Button>
+            <Button onClick={() => exportCustomPDF("services")} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2">
+              <FileText className="w-4 h-4" />
+              {tr(lang, "export_pdf")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

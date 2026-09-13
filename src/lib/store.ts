@@ -580,8 +580,11 @@ export const useAppStore = create<AppState>()((set, get) => ({
 
   deleteEmployee: async (id) => {
     try {
-      await fetch(`/api/employees/${id}`, { method: "DELETE" });
-      await get().fetchAllData();
+      const res = await fetch(`/api/employees/${id}`, { method: "DELETE", credentials: "include" });
+      const data = await res.json();
+      if (data.ok) {
+        await get().fetchAllData();
+      }
     } catch {}
   },
 
