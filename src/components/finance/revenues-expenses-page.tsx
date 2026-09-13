@@ -212,6 +212,33 @@ export function RevenuesExpensesPage() {
     toast.success(lang === "ar" ? "تم تصدير ملف Excel" : "Excel file exported");
   };
 
+  const exportCustomExcel = (type: string) => {
+    if (!customFromDate || !customToDate) {
+      toast.error(lang === "ar" ? "يرجى تحديد التاريخ من وإلى" : "Please select from and to dates");
+      return;
+    }
+    const url = `/api/export?type=${type}&period=custom&format=excel&fromDate=${customFromDate}&toDate=${customToDate}`;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `report_custom_${customFromDate}_to_${customToDate}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setCustomDateOpen(false);
+    toast.success(lang === "ar" ? "تم تصدير ملف Excel" : "Excel file exported");
+  };
+
+  const exportCustomPDF = (type: string) => {
+    if (!customFromDate || !customToDate) {
+      toast.error(lang === "ar" ? "يرجى تحديد التاريخ من وإلى" : "Please select from and to dates");
+      return;
+    }
+    const url = `/api/export?type=${type}&period=custom&format=pdf&fromDate=${customFromDate}&toDate=${customToDate}`;
+    window.open(url, "_blank");
+    setCustomDateOpen(false);
+    toast.success(lang === "ar" ? "تم فتح تقرير PDF" : "PDF report opened");
+  };
+
   return (
     <div className="space-y-5" dir={lang === "ar" ? "rtl" : "ltr"}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -278,6 +305,10 @@ export function RevenuesExpensesPage() {
               <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportExpensesExcel("yearly")}>
                 <Calendar className="w-4 h-4" />
                 {lang === "ar" ? "تصدير سنوي" : "Yearly Export"}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => setCustomDateOpen(true)}>
+                <Calendar className="w-4 h-4" />
+                {lang === "ar" ? "تصدير حسب التاريخ" : "Custom Date Export"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -488,6 +519,38 @@ export function RevenuesExpensesPage() {
             <Button onClick={submitExpense} disabled={saving} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
               {tr(lang, "save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* تصدير حسب التاريخ — نافذة منبثقة */}
+      <Dialog open={customDateOpen} onOpenChange={setCustomDateOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">
+              {lang === "ar" ? "تصدير حسب التاريخ" : "Export by Date Range"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-1.5">
+              <Label>{lang === "ar" ? "من تاريخ" : "From Date"}</Label>
+              <Input type="date" value={customFromDate} onChange={(e) => setCustomFromDate(e.target.value)} className="bg-background" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{lang === "ar" ? "إلى تاريخ" : "To Date"}</Label>
+              <Input type="date" value={customToDate} onChange={(e) => setCustomToDate(e.target.value)} className="bg-background" />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setCustomDateOpen(false)}>{tr(lang, "cancel")}</Button>
+            <Button onClick={() => exportCustomExcel("expenses")} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2">
+              <FileSpreadsheet className="w-4 h-4" />
+              {tr(lang, "export_excel")}
+            </Button>
+            <Button onClick={() => exportCustomPDF("expenses")} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2">
+              <FileText className="w-4 h-4" />
+              {tr(lang, "export_pdf")}
             </Button>
           </DialogFooter>
         </DialogContent>

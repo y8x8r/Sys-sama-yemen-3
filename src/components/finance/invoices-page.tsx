@@ -247,6 +247,10 @@ const exportExcel = (period: "weekly" | "monthly" | "yearly") => {
                   <Calendar className="w-4 h-4" />
                   {lang === "ar" ? "تصدير سنوي" : "Yearly Export"}
                 </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => setCustomDateOpen(true)}>
+                  <Calendar className="w-4 h-4" />
+                  {lang === "ar" ? "تصدير حسب التاريخ" : "Custom Date Export"}
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             {/* تصدير PDF — يومي/أسبوعي/شهري/سنوي */}
@@ -274,6 +278,10 @@ const exportExcel = (period: "weekly" | "monthly" | "yearly") => {
                 <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportPDF("yearly")}>
                   <Calendar className="w-4 h-4" />
                   {lang === "ar" ? "تصدير سنوي" : "Yearly Export"}
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => setCustomDateOpen(true)}>
+                  <Calendar className="w-4 h-4" />
+                  {lang === "ar" ? "تصدير حسب التاريخ" : "Custom Date Export"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

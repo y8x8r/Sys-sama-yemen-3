@@ -55,6 +55,9 @@ export function PaymentsPage() {
   const [search, setSearch] = useState("");
   const [methodFilter, setMethodFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [customDateOpen, setCustomDateOpen] = useState(false);
+  const [customFromDate, setCustomFromDate] = useState("");
+  const [customToDate, setCustomToDate] = useState("");
 
   const list = useMemo(() => {
     let l = payments;
@@ -214,6 +217,10 @@ const exportExcel = (period: "weekly" | "monthly" | "yearly") => {
               <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => exportPDF("yearly")}>
                 <Calendar className="w-4 h-4" />
                 {lang === "ar" ? "تصدير سنوي" : "Yearly Export"}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => setCustomDateOpen(true)}>
+                <Calendar className="w-4 h-4" />
+                {lang === "ar" ? "تصدير حسب التاريخ" : "Custom Date Export"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
