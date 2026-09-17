@@ -78,6 +78,21 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await db.$transaction(async (tx) => {
+      // التحقق من وجود مستخدم معطلون بنفس اسم المستخدم
+      // إذا وُجد، نعيد تسمية اسم المستخدم القديم لتحرير الاسم الأصلي
+      // ( Prisma @unique constraint يمنع تكرار اسم المستخدم حتى لو كان معطّلاً)
+      const inactiveUser = await tx.user.findFirst({
+        where: { username: { equals: username.trim() }, isActive: false },
+      });
+      if (inactiveUser) {
+        // إعادة تسمية المستخدم المعطّل بإضافة لاحقة فريدة
+        const suffix = `_deleted_${Date.now()}`;
+        await tx.user.update({
+          where: { id: inactiveUser.id },
+          data: { username: `${inactiveUser.username}${suffix}` },
+        });
+      }
+
       const seq = (await tx.employee.count()) + 1;
       const employeeNumber = `EMP-${String(seq).padStart(4, "0")}`;
 

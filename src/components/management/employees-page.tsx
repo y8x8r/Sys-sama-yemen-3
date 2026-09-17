@@ -221,11 +221,17 @@ export function EmployeesPage() {
       });
       const data = await res.json();
       if (data.ok) {
-        toast.success(lang === "ar" ? "تم حفظ الصلاحيات" : "Permissions saved");
+        toast.success(lang === "ar"
+          ? `تم حفظ الصلاحيات بنجاح. على المستخدم «${permUsername}» إعادة تسجيل الدخول لتطبيق التغييرات.`
+          : `Permissions saved. User «${permUsername}» must re-login for changes to take effect.`
+        );
         setPermOpen(false);
         setPermUserId(null);
       } else {
-        toast.error(lang === "ar" ? "فشل الحفظ" : "Failed to save");
+        const msg = data.error === "cannot_modify_manager"
+          ? (lang === "ar" ? "لا يمكن تعديل صلاحيات المدير العام" : "Cannot modify manager permissions")
+          : (lang === "ar" ? "فشل الحفظ" : "Failed to save");
+        toast.error(msg);
       }
     } catch (err) {
       toast.error(lang === "ar" ? "فشل الحفظ" : "Failed to save");

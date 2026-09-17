@@ -26,6 +26,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const theme = useAppStore((s) => s.theme);
   const logout = useAppStore((s) => s.logout);
   const isAuthed = useAppStore((s) => s.isAuthed);
+  const refreshPermissions = useAppStore((s) => s.refreshPermissions);
 
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(30);
@@ -84,6 +85,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [isAuthed, logout, showTimeoutWarning]);
+
+  // تحديث الصلاحيات الدقيقة كل 60 ثانية — لضمان تطبيق التغييرات من المدير فوراً
+  // تحديث خفيف بدون إعادة تحميل كل البيانات
+  useEffect(() => {
+    if (!isAuthed) return;
+    const refreshInterval = setInterval(() => {
+      refreshPermissions();
+    }, 60 * 1000); // كل دقيقة
+    return () => clearInterval(refreshInterval);
+  }, [isAuthed, refreshPermissions]);
 
   const handleStayLoggedIn = () => {
     lastActivityRef.current = Date.now();

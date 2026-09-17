@@ -216,6 +216,7 @@ interface AppState {
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   checkSession: () => Promise<void>;
+  refreshPermissions: () => Promise<void>;
   changePassword: (oldPwd: string, newPwd: string) => Promise<boolean>;
   forgotPassword: (step: string, data: any) => Promise<{ ok: boolean; error?: string; resetToken?: string }>;
   // Actions — Settings
@@ -387,6 +388,35 @@ export const useAppStore = create<AppState>()((set, get) => ({
       }
     } catch {
       set({ isAuthed: false, currentUser: null, authLoading: false });
+    }
+  },
+
+  /** تحديث خفيف للصلاحيات الدقيقة فقط — بدون إعادة تحميل كل البيانات */
+  refreshPermissions: async () => {
+    try {
+      const res = await fetch("/api/auth/login", { credentials: "include" });
+      const data = await res.json();
+      if (data.ok && data.user) {
+        const perms: UserPermission[] = (data.permissions ?? []).map((p: any) => ({
+          userId: p.userId,
+          moduleKey: p.moduleKey,
+          level: p.level as PermissionLevel,
+        }));
+        const hidden = new Set<string>();
+        for (const p of perms) {
+          if (p.moduleKey.startsWith("service:") && p.level === "hidden") {
+            hidden.add(p.moduleKey.replace("service:", ""));
+          }
+        }
+        set({
+          isAuthed: true,
+          currentUser: data.user,
+          myPermissions: perms,
+          hiddenServiceTypes: hidden,
+        });
+      }
+    } catch {
+      // تجاهل الأخطاء في التحديث الخفي
     }
   },
 

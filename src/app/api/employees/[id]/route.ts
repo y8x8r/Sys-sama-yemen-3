@@ -51,6 +51,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           if (existing) {
             throw new Error("username_exists");
           }
+          // التحقق من وجود مستخدم معطلون بنفس اسم المستخدم
+          // ( Prisma @unique constraint يمنع التكرار حتى لو كان معطّلاً)
+          const inactiveUser = await tx.user.findFirst({
+            where: { username: { equals: username.trim() }, isActive: false, id: { not: linkedUser.id } },
+          });
+          if (inactiveUser) {
+            const suffix = `_deleted_${Date.now()}`;
+            await tx.user.update({
+              where: { id: inactiveUser.id },
+              data: { username: `${inactiveUser.username}${suffix}` },
+            });
+          }
           updateData.username = username.trim();
         }
 

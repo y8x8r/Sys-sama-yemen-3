@@ -55,6 +55,9 @@ export default function Home() {
     if (!isAuthed || !currentUser) return;
 
     const role = currentUser.role as Role;
+    // الصلاحيات الدقيقة للمستخدم الحالي
+    const myPermissions = useAppStore.getState().myPermissions;
+    const hiddenServiceTypes = useAppStore.getState().hiddenServiceTypes;
 
     const managerOnlyPages: NavPage[] = [
       "employees",
@@ -70,6 +73,31 @@ export default function Home() {
       "payments",
       "invoices",
     ];
+
+    // التحقق من الصلاحيات الدقيقة: هل الصفحة الحالية مخفية للمستخدم؟
+    const pageToModule: Record<string, string> = {
+      customers: "customers",
+      agents_companies: "agents_companies",
+      statistics: "statistics",
+      visa_expiry: "visa_expiry",
+      policies: "policies",
+    };
+
+    // إذا كانت الصفحة الحالية محددة كمخفية في الصلاحيات الدقيقة، أعد التوجيه للوحة التحكم
+    const moduleKey = pageToModule[currentPage as string];
+    if (moduleKey) {
+      const perm = myPermissions.find((p) => p.moduleKey === moduleKey);
+      if (perm?.level === "hidden") {
+        setPage("dashboard");
+        return;
+      }
+    }
+
+    // إذا كانت الصفحة الحالية خدمة محددة كمخفية، أعد التوجيه للوحة التحكم
+    if (hiddenServiceTypes.has(currentPage as string)) {
+      setPage("dashboard");
+      return;
+    }
 
     if (role === "booking_officer") {
       if (managerOnlyPages.includes(currentPage)) {
@@ -110,6 +138,31 @@ export default function Home() {
 }
 
 function PageRouter({ page, role }: { page: string; role?: Role }) {
+  // الصلاحيات الدقيقة للمستخدم الحالي
+  const myPermissions = useAppStore.getState().myPermissions;
+  const hiddenServiceTypes = useAppStore.getState().hiddenServiceTypes;
+
+  // التحقق من الصلاحيات الدقيقة قبل أي شيء
+  // إذا كانت الصفحة محددة كمخفية، عرض لوحة التحكم بدلاً منها
+  const pageToModule: Record<string, string> = {
+    customers: "customers",
+    agents_companies: "agents_companies",
+    statistics: "statistics",
+    visa_expiry: "visa_expiry",
+    policies: "policies",
+  };
+  const moduleKey = pageToModule[page];
+  if (moduleKey) {
+    const perm = myPermissions.find((p) => p.moduleKey === moduleKey);
+    if (perm?.level === "hidden") {
+      return <DashboardPage />;
+    }
+  }
+  // إذا كانت الصفحة خدمة محددة كمخفية
+  if (hiddenServiceTypes.has(page)) {
+    return <DashboardPage />;
+  }
+
   if (role === "booking_officer") {
     const allowedForBookingOfficer = [
       "dashboard",
