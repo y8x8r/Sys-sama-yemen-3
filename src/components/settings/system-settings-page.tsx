@@ -380,7 +380,7 @@ export function SystemSettingsPage() {
             <div className="space-y-1.5">
               <Label>{lang === "ar" ? "التصنيف" : "Category"}</Label>
               <Select value={policyForm.category} onValueChange={(v) => setPolicyForm({ ...policyForm, category: v })}>
-                <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="sama-select bg-background"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="general">{lang === "ar" ? "عامة" : "General"}</SelectItem>
                   <SelectItem value="cancellation">{lang === "ar" ? "إلغاء" : "Cancellation"}</SelectItem>

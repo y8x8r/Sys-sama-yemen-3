@@ -282,7 +282,7 @@ export function EmployeesPage() {
             <div className="space-y-1.5">
               <Label>{tr(lang, "role")} *</Label>
               <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as Role })}>
-                <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="sama-select bg-background"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="manager">{tr(lang, "role_general_manager")}</SelectItem>
                   <SelectItem value="booking_officer">{tr(lang, "role_booking")}</SelectItem>

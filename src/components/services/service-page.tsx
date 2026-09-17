@@ -399,7 +399,7 @@ const exportExcel = (period: "weekly" | "monthly" | "yearly") => {
             {f.required && <span className="text-destructive ms-1">*</span>}
           </Label>
           <Select value={form.customerId ?? ""} onValueChange={(v) => onCustomerSelect(v)}>
-            <SelectTrigger className="h-10 bg-background">
+            <SelectTrigger className="sama-select h-10 bg-background">
               <SelectValue placeholder={tr(lang, "select_customer")} />
             </SelectTrigger>
             <SelectContent>
@@ -429,7 +429,7 @@ const exportExcel = (period: "weekly" | "monthly" | "yearly") => {
             {f.required && <span className="text-destructive ms-1">*</span>}
           </Label>
           <Select value={val} onValueChange={(v) => setForm({ ...form, [f.name]: v })}>
-            <SelectTrigger className="h-10 bg-background">
+            <SelectTrigger className="sama-select h-10 bg-background">
               <SelectValue placeholder={f.placeholder ?? "—"} />
             </SelectTrigger>
             <SelectContent>

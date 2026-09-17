@@ -500,3 +500,64 @@ Stage Summary:
   * أعمدة متساوية (grid 2 columns)
 - ESLint نظيف، خادم التطوير يستجيب بنجاح (HTTP 200)
 - اختبار إنشاء معاملة تأمينات سفر بعميل حقيقي نجح
+
+---
+Task ID: 11
+Agent: Main Agent (Super Z)
+Task: إصلاح أحجام القوائم المنسدلة غير المتساوية — توحيد العرض والارتفاع والمحاذاة
+
+Work Log:
+- تشخيص المشكلة الجذرية:
+  * السبب: SelectTrigger في shadcn/ui يستخدم `w-fit` افتراضياً (select.tsx line 40)
+  * هذا يجعل عرض القائمة يتغير حسب النص المختار — قائمة بـ "SAR" تكون ضيقة، وقائمة بـ "United States Dollar" تكون عريضة
+  * لا يوجد `width: 100%` أو `max-height` على مستوى المكون
+
+- إنشاء فئة CSS موحدة قابلة لإعادة الاستخدام `.sama-select`:
+  * تُجبر العرض على 100% (width: 100% !important + min-width: 100%)
+  * ارتفاع موحد: height: 2.5rem + min-height: 2.5rem + max-height: 2.5rem
+  * حشو موحد: padding: 0.5rem 0.75rem
+  * خط موحد: font-size: 0.875rem + font-weight: 500 + line-height: 1.5
+  * حدود موحدة: border: 1px solid var(--border)
+  * انحناء موحد: border-radius: 0.5rem
+  * منع تغير الحجم: overflow: hidden + white-space: nowrap
+  * محاذاة: justify-content: space-between + align-items: center
+  * box-sizing: border-box
+
+- تطبيق الفئة عالمياً عبر [data-slot="select-trigger"]:
+  * جميع قوائم Select في النظام الآن لها نفس الارتفاع والحشو والخط والحدود والانحناء
+  * الفئة الصريحة .sama-select تُجبر العرض على 100% للحقول داخل النماذج
+  * قوائم الفلترة في الشريط الجانبي تحتفظ بعرضها المخصص (sm:w-44)
+
+- تطبيق .sama-select على جميع حقول النماذج:
+  * employees-page.tsx: قائمة اختيار الدور (role selector)
+  * service-page.tsx: قائمة اختيار العميل + قوائم الاختيار في النماذج
+  * system-settings-page.tsx: قائمة تصنيف السياسات
+  * invoices-page.tsx: قائمة حالة الفاتورة
+  * revenues-expenses-page.tsx: قائمة العملة
+
+- إصلاح Select content (لوحة القائمة المنسدلة):
+  * width: var(--radix-select-trigger-width) — يتطابق مع عرض الـ trigger
+  * min-width: var(--radix-select-trigger-width) — لا يتغير حسب النص
+  * box-sizing: border-box — حساب متناسق للأبعاد
+
+- تطبيق CSS خاص بالحواريات (dialog-specific):
+  * [data-slot="dialog-content"] [data-slot="select-trigger"] — عرض 100% + ارتفاع 2.5rem
+  * justify-content: space-between — محاذاة موحدة
+  * overflow: hidden + white-space: nowrap — منع تغير الحجم
+
+- عدم تغيير أي وظيفة أو منطق بيانات:
+  * جميع التغييرات CSS فقط
+  * لا تغيير في API أو store أو logic
+  * الاحتفاظ بجميع الفلاتر في الأشرطة الجانبية بعرضها المخصص
+
+Stage Summary:
+- جميع قوائم Select المنسدلة في النظام الآن لها:
+  * نفس الارتفاع (2.5rem = 40px)
+  * نفس الحشو (0.5rem 0.75rem)
+  * نفس الخط (0.875rem Cairo)
+  * نفس الحدود (1px solid var(--border))
+  * نفس الانحناء (0.5rem)
+- عرض القوائم لا يتغير حسب النص المختار (width: 100% + overflow: hidden + white-space: nowrap)
+- فئة موحدة .sama-select قابلة لإعادة الاستخدام على أي Select trigger جديد
+- قوائم الفلترة في الأشرطة الجانبية تحتفظ بعرضها المخصص
+- ESLint نظيف، خادم التطوير يستجيب بنجاح (HTTP 200)

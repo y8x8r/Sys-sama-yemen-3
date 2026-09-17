@@ -485,7 +485,7 @@ const exportExcel = (period: "weekly" | "monthly" | "yearly") => {
             <div className="space-y-1.5">
               <Label>{tr(lang, "invoice_status")}</Label>
               <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
-                <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="sama-select bg-background"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="draft">{tr(lang, "invoice_draft")}</SelectItem>
                   <SelectItem value="issued">{tr(lang, "invoice_issued")}</SelectItem>

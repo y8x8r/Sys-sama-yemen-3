@@ -388,11 +388,13 @@
   background-color: var(--border) !important;
 }
 
-/* قائمة Select (SelectContent) */
+/* قائمة Select (SelectContent) — حجم موحد لا يتغير حسب النص */
+.sama-select-content,
 [data-slot="select-content"] {
   min-width: var(--radix-select-trigger-width) !important;
+  width: var(--radix-select-trigger-width) !important;
   padding: 0.375rem !important;
-  border-radius: 0.75rem !important;
+  border-radius: 0.5rem !important;
   border: 1px solid var(--border) !important;
   background-color: var(--popover) !important;
   color: var(--popover-foreground) !important;
@@ -403,6 +405,7 @@
   z-index: 100 !important;
   max-height: 18rem !important;
   overflow-y: auto !important;
+  box-sizing: border-box !important;
 }
 
 /* عناصر Select */
@@ -476,27 +479,55 @@
   font-weight: 600 !important;
 }
 
-/* زر تشغيل Select (SelectTrigger) */
+/* =================================================================== */
+/* فئة موحدة قابلة لإعادة الاستخدام لجميع القوائم المنسدلة            */
+/* sama-select — تطبق حجم ومحاذاة موحدة على كل Select triggers         */
+/* =================================================================== */
+/* الاستخدام: <SelectTrigger className="sama-select">                 */
+/* يضمن: عرض ثابت، ارتفاع موحد، حشو/خط/حدود/انحناء متناسق             */
+/* يمنع تغير حجم الـ trigger حسب النص المختار                         */
+/* =================================================================== */
+
+.sama-select,
 [data-slot="select-trigger"] {
+  /* ارتفاع موحد لجميع القوائم — لا يتغير حسب المحتوى */
+  height: 2.5rem !important;
   min-height: 2.5rem !important;
+  max-height: 2.5rem !important;
+  /* حشو، خط، حدود، وانحناء موحد */
   padding: 0.5rem 0.75rem !important;
-  border-radius: 0.625rem !important;
+  border-radius: 0.5rem !important;
   border: 1px solid var(--border) !important;
   background-color: var(--background) !important;
   color: var(--foreground) !important;
   font-family: var(--font-cairo), "Segoe UI", sans-serif !important;
   font-size: 0.875rem !important;
   font-weight: 500 !important;
+  line-height: 1.5 !important;
   display: flex !important;
   align-items: center !important;
+  justify-content: space-between !important;
   gap: 0.5rem !important;
+  box-sizing: border-box !important;
   transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+  /* منع تغير حجم الـ trigger حسب النص المختار */
+  overflow: hidden !important;
+  white-space: nowrap !important;
 }
 
+/* عند استخدام الفئة الصريحة sama-select، يُجبر العرض على 100% */
+.sama-select {
+  width: 100% !important;
+  min-width: 100% !important;
+}
+
+.sama-select:hover,
 [data-slot="select-trigger"]:hover {
   border-color: rgba(124, 58, 237, 0.4) !important;
 }
 
+.sama-select:focus,
+.sama-select[data-state="open"],
 [data-slot="select-trigger"]:focus,
 [data-slot="select-trigger"][data-state="open"] {
   border-color: var(--primary) !important;
@@ -504,12 +535,29 @@
   outline: none !important;
 }
 
-/* قيمة Select (SelectValue) */
-[data-slot="select-value"] {
+/* قيمة Select (SelectValue) — محаджاة موحدة داخل الـ trigger */
+.sama-select [data-slot="select-value"],
+[data-slot="select-trigger"] [data-slot="select-value"] {
   flex: 1 !important;
+  min-width: 0 !important;
   font-size: 0.875rem !important;
   font-weight: 500 !important;
   text-align: start !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+}
+
+/* أيقونة السهم في Select trigger — موضع ثابت */
+.sama-select svg,
+[data-slot="select-trigger"] svg {
+  width: 1rem !important;
+  height: 1rem !important;
+  flex-shrink: 0 !important;
+  opacity: 0.5 !important;
 }
 
 /* Popover content */
@@ -619,19 +667,25 @@
   border-style: solid !important;
 }
 
-/* Select triggers — نفس ارتفاع Input */
-[data-slot="dialog-content"] [data-slot="select-trigger"] {
+/* Select triggers — نفس ارتفاع Input، عرض موحد لا يتغير */
+[data-slot="dialog-content"] [data-slot="select-trigger"],
+[data-slot="dialog-content"] .sama-select {
   height: 2.5rem !important;
   min-height: 2.5rem !important;
+  max-height: 2.5rem !important;
   width: 100% !important;
+  min-width: 100% !important;
   padding: 0.5rem 0.75rem !important;
   font-size: 0.875rem !important;
   line-height: 1.5 !important;
   border-radius: 0.5rem !important;
-  border-width: 1px !important;
-  border-style: solid !important;
+  border: 1px solid var(--border) !important;
   display: flex !important;
   align-items: center !important;
+  justify-content: space-between !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
 }
 
 /* Textarea — ارتفاع موحد */

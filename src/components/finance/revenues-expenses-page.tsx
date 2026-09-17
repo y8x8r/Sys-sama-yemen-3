@@ -508,7 +508,7 @@ export function RevenuesExpensesPage() {
               <div className="space-y-1.5">
                 <Label>{tr(lang, "currency")}</Label>
                 <Select value={expForm.currency} onValueChange={(v) => setExpForm({ ...expForm, currency: v as Currency })}>
-                  <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="sama-select bg-background"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="SAR">{tr(lang, "sar")}</SelectItem>
                     <SelectItem value="YER">{tr(lang, "yer")}</SelectItem>
