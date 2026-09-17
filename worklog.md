@@ -391,3 +391,47 @@ Stage Summary:
 - تحديث تلقائي للصلاحيات كل 60 ثانية: تطبيق تغييرات المدير على المستخدمين المسجلين خلال دقيقة
 - ESLint نظيف، خادم التطوير يستجيب بنجاح
 - جميع API endpoints تعمل بشكل صحيح
+
+---
+Task ID: 9
+Agent: Main Agent (Super Z)
+Task: 3 تعديلات بسيطة — انتهاء الجلسة عند إغلاق المتصفح، توحيد محاذاة القوائم المنسدلة، تصحيح صلاحيات موظف الحجوزات
+
+Work Log:
+- التعديل 1: انتهاء الجلسة عند إغلاق المتصفح
+  * المشكلة: cookie الجلسة كان له maxAge = أسبوع، فكانت الجلسة تستمر عبر إعادة تشغيل المتصفح
+  * الحل: إزالة maxAge من cookie في POST /api/auth/login، أصبح session cookie ينتهي تلقائياً عند إغلاق المتصفح بالكامل
+  * التحقق: cookie file يظهر FALSE في عمود max-age (session cookie)
+
+- التعديل 2: توحيد ومحاذاة حقول القوائم المنسدلة بخطوط متوازية
+  * إضافة min-height: 2.25rem لجميع عناصر القوائم (dropdown-menu-item و select-item) — ارتفاع موحد
+  * إضافة line-height: 1.5 لجميع العناصر — خطوط متوازية
+  * إضافة white-space: nowrap — منع التفاف النص
+  * إضافة width: 100% — عرض موحد لجميع العناصر
+  * إضافة text-align: start — محاذاة موحدة
+  * توحيد الأيقونات: width/height = 1rem، flex-shrink: 0، display: inline-flex
+  * إضافة flex: 1 للنصوص داخل القوائم — تأخذ المساحة المتبقية وتكون متوازية
+  * تحسين دعم RTL: flex-direction: row-reverse، justify-content: flex-start
+  * المحاذاة في RTL: text-align: right، justify-content: flex-end
+
+- التعديل 3: تصحيح قدرة موظف الحجوزات على رؤية الإحصائيات والتأشيرات قاربت الانتهاء
+  * المشكلة الجذرية: في page.tsx، المصفوفة accountantAllowed كانت تحتوي على "statistics" و "visa_expiry"
+    وكانت تُستخدم لحظر موظفي الحجوزات من الوصول لهذه الصفحات
+  * الحل: استبدال المصفوفة accountantAllowed بـ bookingOfficerBlocked التي لا تحتوي على "statistics" و "visa_expiry"
+    بل تحتوي فقط على: audit_log, revenues_expenses, payments, invoices
+  * تحديث auth.ts ROLE_PERMISSIONS: إضافة "statistics" و "visa_expiry" و "policies" لموارد booking_officer
+  * النتيجة: موظف الحجوزات الآن يرى ويصل لصفحات:
+    - لوحة التحكم (dashboard) ✓
+    - جميع الخدمات الـ 24 ✓
+    - العملاء (customers) ✓
+    - الوكلاء والشركات (agents_companies) ✓
+    - الإحصائيات (statistics) ✓ — تم التصحيح
+    - تأشيرات قاربت الانتهاء (visa_expiry) ✓ — تم التصحيح
+  * لا يزال لا يرى: employees, users_permissions, system_settings, audit_log, revenues_expenses, payments, invoices
+
+Stage Summary:
+- الجلسة تنتهي الآن عند إغلاق المتصفح بالكامل — يتطلب تسجيل دخول مرة أخرى
+- جميع القوائم المنسدلة موحدة ومحاذاة بخطوط متوازية (نفس الارتفاع، نفس الخط، نفس المحاذاة)
+- موظف الحجوزات يرى الآن الإحصائيات والتأشيرات قاربت الانتهاء بشكل صحيح
+- ESLint نظيف، خادم التطوير يستجيب بنجاح (HTTP 200)
+- تم اختبار إنشاء وحذف مستخدم تجريبي للتحقق من التدفقات

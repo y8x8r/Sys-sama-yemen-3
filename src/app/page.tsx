@@ -59,16 +59,17 @@ export default function Home() {
     const myPermissions = useAppStore.getState().myPermissions;
     const hiddenServiceTypes = useAppStore.getState().hiddenServiceTypes;
 
+    // صفحات لا يصل لها سوى المدير العام
     const managerOnlyPages: NavPage[] = [
       "employees",
       "users_permissions",
       "system_settings",
     ];
 
-    const accountantAllowed: NavPage[] = [
-      "statistics",
+    // صفحات لا يصل لها موظف الحجوزات (لكن المحاسب يصل لها)
+    // ملاحظة: الإحصائيات والتأشيرات قاربت الانتهاء متاحة لموظف الحجوزات
+    const bookingOfficerBlocked: NavPage[] = [
       "audit_log",
-      "visa_expiry",
       "revenues_expenses",
       "payments",
       "invoices",
@@ -100,17 +101,21 @@ export default function Home() {
     }
 
     if (role === "booking_officer") {
+      // موظف الحجوزات لا يصل لصفحات المدير فقط
       if (managerOnlyPages.includes(currentPage)) {
         setPage("dashboard");
         return;
       }
-      if (accountantAllowed.includes(currentPage)) {
+      // موظف الحجوزات لا يصل للوحدات المالية وسجل التدقيق
+      // لكنه يصل للإحصائيات والتأشيرات قاربت الانتهاء
+      if (bookingOfficerBlocked.includes(currentPage)) {
         setPage("dashboard");
         return;
       }
     }
 
     if (role === "accountant") {
+      // المحاسب لا يصل لصفحات المدير فقط
       if (managerOnlyPages.includes(currentPage)) {
         setPage("revenues_expenses");
         return;

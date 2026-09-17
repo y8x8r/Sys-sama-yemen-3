@@ -89,12 +89,13 @@ export async function POST(req: NextRequest) {
     });
 
     // تعيين cookie للجلسة (httpOnly للأمان)
-    // maxAge أسبوع — يستمر عبر F5 وإعادة فتح المتصفح
+    // session cookie — ينتهي تلقائياً عند إغلاق المتصفح بالكامل
+    // لا يستمر عبر إعادة تشغيل المتصفح، يطلب تسجيل الدخول مرة أخرى
     response.cookies.set("sama_session", sessionId, {
       httpOnly: true,
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // أسبوع
       path: "/",
+      // بدون maxAge = session cookie ينتهي عند إغلاق المتصفح
     });
 
     return response;

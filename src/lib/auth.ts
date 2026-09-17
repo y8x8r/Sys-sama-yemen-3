@@ -53,7 +53,7 @@ export const ROLE_PERMISSIONS: Record<string, {
     actions: ["view", "create", "edit", "print", "export"],
   },
   booking_officer: {
-    modules: ["dashboard", "services", "customers", "agents_companies"],
+    modules: ["dashboard", "services", "customers", "agents_companies", "statistics", "visa_expiry", "policies"],
     actions: ["view", "create", "edit", "print", "export"],
   },
 };

@@ -342,17 +342,33 @@
 
 /* عناصر القائمة المنسدلة */
 [data-slot="dropdown-menu-item"] {
+  min-height: 2.25rem !important;
   padding: 0.5rem 0.75rem !important;
   border-radius: 0.5rem !important;
   font-size: 0.875rem !important;
   font-weight: 500 !important;
+  line-height: 1.5 !important;
   color: var(--popover-foreground) !important;
   display: flex !important;
   align-items: center !important;
-  gap: 0.5rem !important;
+  gap: 0.625rem !important;
   cursor: pointer !important;
   transition: background-color 0.15s ease, color 0.15s ease !important;
   outline: none !important;
+  text-align: start !important;
+  white-space: nowrap !important;
+  width: 100% !important;
+}
+
+/* الأيقونات داخل عناصر القائمة — عرض موحد لتكون النصوص متوازية */
+[data-slot="dropdown-menu-item"] svg,
+[data-slot="dropdown-menu-item"] [class*="icon"] {
+  width: 1rem !important;
+  height: 1rem !important;
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 [data-slot="dropdown-menu-item"]:hover,
@@ -391,17 +407,61 @@
 
 /* عناصر Select */
 [data-slot="select-item"] {
+  min-height: 2.25rem !important;
   padding: 0.5rem 0.75rem !important;
   border-radius: 0.5rem !important;
   font-size: 0.875rem !important;
   font-weight: 500 !important;
+  line-height: 1.5 !important;
   color: var(--popover-foreground) !important;
   display: flex !important;
   align-items: center !important;
-  gap: 0.5rem !important;
+  gap: 0.625rem !important;
   cursor: pointer !important;
   transition: background-color 0.15s ease, color 0.15s ease !important;
   outline: none !important;
+  text-align: start !important;
+  white-space: nowrap !important;
+  width: 100% !important;
+}
+
+/* الأيقونات داخل عناصر Select — عرض موحد */
+[data-slot="select-item"] svg,
+[data-slot="select-item"] [class*="icon"] {
+  width: 1rem !important;
+  height: 1rem !important;
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* النصوص داخل عناصر القائمة — تأخذ المساحة المتبقية وتكون متوازية */
+[data-slot="dropdown-menu-item"] > span,
+[data-slot="dropdown-menu-item"] > div,
+[data-slot="select-item"] > span,
+[data-slot="select-item"] > div {
+  flex: 1 !important;
+  min-width: 0 !important;
+  text-align: start !important;
+  line-height: 1.5 !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* محاذاة محتوى عناصر القائمة في RTL — اليمين هو البداية */
+[dir="rtl"] [data-slot="dropdown-menu-item"],
+[dir="rtl"] [data-slot="select-item"] {
+  flex-direction: row-reverse !important;
+  justify-content: flex-start !important;
+}
+
+[dir="rtl"] [data-slot="dropdown-menu-item"] > span,
+[dir="rtl"] [data-slot="dropdown-menu-item"] > div,
+[dir="rtl"] [data-slot="select-item"] > span,
+[dir="rtl"] [data-slot="select-item"] > div {
+  text-align: right !important;
+  justify-content: flex-end !important;
 }
 
 [data-slot="select-item"]:hover,
