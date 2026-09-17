@@ -57,6 +57,9 @@ export const t: Record<Lang, Record<string, string>> = {
     nav_medical_report: "تقارير طبية",
     nav_travel_insurance: "تأمينات السفر",
     nav_hotel_booking: "الحجوزات الفندقية",
+    nav_professional_exam: "الفحص المهني",
+    nav_visa_authorization: "تفويض فيز",
+    nav_transit_visa: "تأشيرة عبور",
     // Nav — management
     nav_customers: "إدارة العملاء",
     nav_employees: "إدارة الموظفين",
@@ -406,6 +409,22 @@ export const t: Record<Lang, Record<string, string>> = {
     confirm_logout: "هل أنت متأكد من تسجيل الخروج؟",
     session_expired: "انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى.",
     access_denied: "لا تملك صلاحية الوصول إلى هذه الصفحة",
+    // New fields for new services
+    f_email: "البريد الإلكتروني",
+    f_exam_profession: "مهنة الاختبار",
+    f_password_field: "كلمة المرور",
+    f_departure_date: "تاريخ المغادرة",
+    f_return_date: "تاريخ العودة",
+    f_requirements: "المتطلبات",
+    f_mother_name: "اسم الأم",
+    // Hajj regular authorized agency
+    f_authorized_agency: "الوكالة المفوضة للحج",
+    // Status notes
+    f_status_notes: "ملاحظات الحالة",
+    // Unlock
+    unlock: "فتح القفل",
+    fullscreen: "ملء الشاشة",
+    exit_fullscreen: "الخروج من ملء الشاشة",
   },
   en: {
     brand_name: "Sama Yemen",
@@ -456,6 +475,9 @@ export const t: Record<Lang, Record<string, string>> = {
     nav_medical_report: "Medical Reports",
     nav_travel_insurance: "Travel Insurance",
     nav_hotel_booking: "Hotel Bookings",
+    nav_professional_exam: "Professional Exam",
+    nav_visa_authorization: "Visa Authorization",
+    nav_transit_visa: "Transit Visa",
     nav_customers: "Customers",
     nav_employees: "Employees",
     nav_agents_companies: "Agents & Companies",
@@ -771,6 +793,18 @@ export const t: Record<Lang, Record<string, string>> = {
     confirm_logout: "Are you sure you want to logout?",
     session_expired: "Session expired. Please sign in again.",
     access_denied: "You do not have permission to access this page",
+    f_email: "Email",
+    f_exam_profession: "Exam Profession",
+    f_password_field: "Password",
+    f_departure_date: "Departure Date",
+    f_return_date: "Return Date",
+    f_requirements: "Requirements",
+    f_mother_name: "Mother's Name",
+    f_authorized_agency: "Authorized Hajj Agency",
+    f_status_notes: "Status Notes",
+    unlock: "Unlock",
+    fullscreen: "Fullscreen",
+    exit_fullscreen: "Exit Fullscreen",
   },
 };
 

@@ -840,4 +840,34 @@ if (typeof window !== "undefined") {
     if (state.theme) localStorage.setItem("sama_theme", state.theme);
     if (state.currentPage) sessionStorage.setItem("sama_current_page", state.currentPage);
   });
+
+  // انتهاء الجلسة بعد 3 دقائق من الخمول
+  let idleTimer: ReturnType<typeof setTimeout> | null = null;
+  const IDLE_TIMEOUT = 3 * 60 * 1000; // 3 دقائق
+
+  const resetIdleTimer = () => {
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      const state = useAppStore.getState();
+      if (state.isAuthed) {
+        // تسجيل الخروج التلقائي
+        fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => {});
+        sessionStorage.removeItem("sama_current_page");
+        useAppStore.setState({
+          isAuthed: false,
+          currentUser: null,
+          currentPage: "dashboard",
+        });
+      }
+    }, IDLE_TIMEOUT);
+  };
+
+  // إعادة ضبط المؤقت عند أي نشاط
+  const activityEvents = ["mousedown", "keydown", "scroll", "touchstart", "click"];
+  activityEvents.forEach((evt) => {
+    document.addEventListener(evt, resetIdleTimer, { passive: true });
+  });
+
+  // بدء المؤقت عند الدخول
+  resetIdleTimer();
 }

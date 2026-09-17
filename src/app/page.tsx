@@ -119,7 +119,9 @@ function PageRouter({ page, role }: { page: string; role?: Role }) {
       "visa_medical", "visa_tourist", "visa_work", "visa_visit",
       "shipping", "customs", "security_approval", "medical_report",
       "travel_insurance", "hotel_booking",
+      "professional_exam", "visa_authorization", "transit_visa",
       "customers", "agents_companies",
+      "visa_expiry", "statistics", "system_settings",
     ];
     if (!allowedForBookingOfficer.includes(page)) {
       return <DashboardPage />;

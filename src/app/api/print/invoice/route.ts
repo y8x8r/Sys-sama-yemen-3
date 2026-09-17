@@ -54,6 +54,8 @@ export async function GET(req: NextRequest) {
     for (const f of cfg.fields) {
       const v = serviceDetails[f.name];
       if (v === undefined || v === null || v === "") continue;
+      // إخفاء اسم الوكيل/المندوب ورقمه عند الطباعة
+      if (f.name === "agentName" || f.name === "agentNumber") continue;
       let display: string = String(v);
       if (f.type === "select" && f.options) {
         const opt = f.options.find((o) => o.value === v);

@@ -82,6 +82,9 @@ const groups: NavGroup[] = [
       { page: "medical_report", labelKey: "nav_medical_report", icon: Stethoscope },
       { page: "travel_insurance", labelKey: "nav_travel_insurance", icon: ShieldCheck },
       { page: "hotel_booking", labelKey: "nav_hotel_booking", icon: Hotel },
+      { page: "professional_exam", labelKey: "nav_professional_exam", icon: Stethoscope },
+      { page: "visa_authorization", labelKey: "nav_visa_authorization", icon: FileText },
+      { page: "transit_visa", labelKey: "nav_transit_visa", icon: Plane },
     ],
   },
   {
@@ -149,10 +152,10 @@ export function Sidebar() {
       if (gKey === "monitoring") return false;
       return true; // dashboard + finance فقط
     }
-    // موظف الحجوزات: الخدمات + الإدارات + لوحة التحكم فقط
-    if (gKey === "monitoring") return false;
+    // موظف الحجوزات: الخدمات + الإدارات + لوحة التحكم + المراقبة (تأشيرات قاربت الانتهاء + إحصائيات) + السياسات
     if (gKey === "settings") return false;
     if (gKey === "finance") return false;
+    // السماح لموظف الحجوزات برؤية قسم المراقبة (تأشيرات قاربت الانتهاء + إحصائيات)
     return true;
   };
 
@@ -161,6 +164,8 @@ export function Sidebar() {
     if (isManager) return true;
     // موظف الحجوزات لا يرى إدارة الموظفين ولا صلاحيات المستخدمين
     if (page === "employees" || page === "users_permissions") return false;
+    // موظف الحجوزات لا يرى سجل التدقيق (مدير فقط)
+    if (page === "audit_log") return false;
     // المحاسب لا يرى العملاء ولا الوكلاء (فقط الوحدات المالية)
     if (currentUser?.role === "accountant") {
       if (page === "customers" || page === "agents_companies") return false;

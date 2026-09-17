@@ -29,7 +29,10 @@ export type ServiceType =
   | "security_approval"
   | "medical_report"
   | "travel_insurance"
-  | "hotel_booking";
+  | "hotel_booking"
+  | "professional_exam"
+  | "visa_authorization"
+  | "transit_visa";
 
 export type ServiceStatus =
   | "pending"
@@ -275,6 +278,9 @@ export type NavPage =
   | "medical_report"
   | "travel_insurance"
   | "hotel_booking"
+  | "professional_exam"
+  | "visa_authorization"
+  | "transit_visa"
   // management
   | "customers"
   | "employees"

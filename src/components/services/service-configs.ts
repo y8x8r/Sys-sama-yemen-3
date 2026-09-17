@@ -33,6 +33,7 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
       { name: "customerNumber", labelKey: "f_customer_number", type: "text" },
       { name: "passportNumber", labelKey: "f_passport", type: "text" },
+      { name: "authorizedAgency", labelKey: "f_authorized_agency", type: "text", placeholder: "اسم الوكالة المفوضة" },
     ],
   },
   umrah_program: {
@@ -411,6 +412,52 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
         { value: "cancellable", labelKey: "list_cancellable" },
         { value: "non_cancellable", labelKey: "list_non_cancellable" },
       ] },
+    ],
+  },
+
+  // ========== خدمات إضافية جديدة ==========
+
+  // الفحص المهني
+  professional_exam: {
+    serviceType: "professional_exam",
+    labelKey: "nav_professional_exam",
+    withFinance: true,
+    fields: [
+      { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
+      { name: "passportNumber", labelKey: "f_passport", type: "text" },
+      { name: "phoneNumber", labelKey: "f_phone", type: "tel", fromCustomer: "phoneNumber" },
+      { name: "email", labelKey: "f_email", type: "text", placeholder: "email@example.com" },
+      { name: "examProfession", labelKey: "f_exam_profession", type: "text", placeholder: "مثال: هندسة، طب..." },
+      { name: "passwordField", labelKey: "f_password_field", type: "text", placeholder: "—" },
+      { name: "departureDate", labelKey: "f_departure_date", type: "date" },
+      { name: "returnDate", labelKey: "f_return_date", type: "date" },
+    ],
+  },
+
+  // تفويض فيز
+  visa_authorization: {
+    serviceType: "visa_authorization",
+    labelKey: "nav_visa_authorization",
+    withFinance: true,
+    fields: [
+      { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
+      { name: "passportNumber", labelKey: "f_passport", type: "text" },
+      { name: "phoneNumber", labelKey: "f_phone", type: "tel", fromCustomer: "phoneNumber" },
+      { name: "requirements", labelKey: "f_requirements", type: "textarea", span2: true },
+    ],
+  },
+
+  // تأشيرة عبور
+  transit_visa: {
+    serviceType: "transit_visa",
+    labelKey: "nav_transit_visa",
+    withFinance: true,
+    fields: [
+      { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
+      { name: "passportNumber", labelKey: "f_passport", type: "text" },
+      { name: "phoneNumber", labelKey: "f_phone", type: "tel", fromCustomer: "phoneNumber" },
+      { name: "visaDuration", labelKey: "f_visa_duration", type: "text", placeholder: "مثال: 72 ساعة" },
+      { name: "motherName", labelKey: "f_mother_name", type: "text" },
     ],
   },
 };

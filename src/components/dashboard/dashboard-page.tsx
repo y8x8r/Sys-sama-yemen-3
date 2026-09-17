@@ -76,6 +76,9 @@ const serviceTypeIconMap: Record<string, React.ComponentType<{ className?: strin
   medical_report: Stethoscope,
   travel_insurance: ShieldCheck,
   hotel_booking: Hotel,
+  professional_exam: Stethoscope,
+  visa_authorization: FileText,
+  transit_visa: Plane,
 };
 
 const currencySymbol = (c: string) => (c === "SAR" ? "ر.س" : c === "YER" ? "ر.ي" : "$");

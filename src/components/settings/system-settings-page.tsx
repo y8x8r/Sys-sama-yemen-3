@@ -52,6 +52,7 @@ import {
   Trash2,
   Loader2,
   FileText,
+  Unlock,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -214,7 +215,13 @@ export function SystemSettingsPage() {
         {isManager && (
           <Card className="border-border card-shadow lg:col-span-2">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold flex items-center gap-2"><KeyRound className="w-4 h-4 text-primary" />{tr(lang, "change_password")}</CardTitle>
+              <CardTitle className="text-base font-semibold flex items-center gap-2 justify-between">
+                <span className="flex items-center gap-2"><KeyRound className="w-4 h-4 text-primary" />{tr(lang, "change_password")}</span>
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { setShowCurrent(!showCurrent); setShowNext(!showCurrent); }}>
+                  <Unlock className="w-4 h-4" />
+                  {tr(lang, "unlock")}
+                </Button>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

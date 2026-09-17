@@ -24,7 +24,11 @@ import {
   ChevronLeft,
   CheckCheck,
   X,
+  Maximize,
+  Minimize,
+  Unlock,
 } from "lucide-react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 const pageLabels: Record<string, string> = {
@@ -50,6 +54,9 @@ const pageLabels: Record<string, string> = {
   medical_report: "nav_medical_report",
   travel_insurance: "nav_travel_insurance",
   hotel_booking: "nav_hotel_booking",
+  professional_exam: "nav_professional_exam",
+  visa_authorization: "nav_visa_authorization",
+  transit_visa: "nav_transit_visa",
   customers: "nav_customers",
   employees: "nav_employees",
   agents_companies: "nav_agents_companies",
@@ -78,6 +85,22 @@ export function Topbar() {
   const markAllNotificationsRead = useAppStore((s) => s.markAllNotificationsRead);
   const setMobileSidebarOpen = useAppStore((s) => s.setMobileSidebarOpen);
   const mobileSidebarOpen = useAppStore((s) => s.mobileSidebarOpen);
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handleFsChange);
+    return () => document.removeEventListener("fullscreenchange", handleFsChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+  };
 
   const roleLabel =
     currentUser?.role === "manager"
@@ -131,6 +154,10 @@ export function Topbar() {
 
         {/* Left side (in RTL): actions */}
         <div className="flex items-center gap-2">
+          {/* Fullscreen toggle */}
+          <Button variant="ghost" size="icon" onClick={toggleFullscreen} title={isFullscreen ? tr(lang, "exit_fullscreen") : tr(lang, "fullscreen")}>
+            {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+          </Button>
           {/* Language */}
           <Button
             variant="ghost"

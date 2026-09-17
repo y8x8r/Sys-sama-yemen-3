@@ -137,6 +137,9 @@ export const serviceTypeLabels: Record<ServiceType, string> = {
   medical_report: "nav_medical_report",
   travel_insurance: "nav_travel_insurance",
   hotel_booking: "nav_hotel_booking",
+  professional_exam: "nav_professional_exam",
+  visa_authorization: "nav_visa_authorization",
+  transit_visa: "nav_transit_visa",
 };
 
 /** قائمة أنواع الخدمات الـ 21 — تُستخدم في شاشة «تحديد نوع الخدمة» */
@@ -162,4 +165,7 @@ export const allServiceTypes: ServiceType[] = [
   "medical_report",
   "travel_insurance",
   "hotel_booking",
+  "professional_exam",
+  "visa_authorization",
+  "transit_visa",
 ];
