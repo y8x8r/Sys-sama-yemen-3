@@ -211,6 +211,9 @@ export function ServicePage({ config }: Props) {
     // اعتماد رقم البطاقة تلقائياً من ملف العميل عند توفره
     if (c.cardNumber) next.cardNumber = c.cardNumber;
     if (c.nationalId) next.nationalId = c.nationalId;
+    // لتأمينات السفر: تعبئة اسم المؤمَّن عليه ورقمه من ملف العميل تلقائياً
+    if (c.fullName) next.insuredName = c.fullName;
+    if (c.customerNumber) next.insuredNo = c.customerNumber;
     setForm(next);
   };
 

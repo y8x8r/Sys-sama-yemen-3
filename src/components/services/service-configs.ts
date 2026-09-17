@@ -386,6 +386,8 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
     labelKey: "nav_travel_insurance",
     withFinance: true,
     fields: [
+      { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
+      { name: "customerNumber", labelKey: "f_customer_number", type: "text", fromCustomer: "customerNumber" },
       { name: "insuredName", labelKey: "f_insured_name", type: "text", required: true },
       { name: "insuredNo", labelKey: "f_insured_number", type: "text" },
       { name: "passportNumber", labelKey: "f_passport", type: "text" },

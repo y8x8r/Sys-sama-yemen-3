@@ -435,3 +435,68 @@ Stage Summary:
 - موظف الحجوزات يرى الآن الإحصائيات والتأشيرات قاربت الانتهاء بشكل صحيح
 - ESLint نظيف، خادم التطوير يستجيب بنجاح (HTTP 200)
 - تم اختبار إنشاء وحذف مستخدم تجريبي للتحقق من التدفقات
+
+---
+Task ID: 10
+Agent: Main Agent (Super Z)
+Task: 3 تعديلات — حقل العميل في تأمينات السفر، إلغاء الصلاحيات الدقيقة، محاذاة حقول الخدمات
+
+Work Log:
+- التعديل 1: إضافة حقل اسم العميل ورقمه في تأمينات السفر مع التعبئة التلقائية
+  * تحديث service-configs.ts:travel_insurance:
+    - إضافة customerName (fromCustomer: "fullName", required) — يُظهر قائمة اختيار العميل
+    - إضافة customerNumber (fromCustomer: "customerNumber") — يُظهر نفس قائمة العميل
+    - الحفاظ على جميع الحقول الحالية: insuredName, insuredNo, passportNumber, birthDate, etc.
+  * تحديث service-page.tsx:onCustomerSelect:
+    - عند اختيار عميل، يتم تعبئة:
+      * customerName = c.fullName
+      * customerNumber = c.customerNumber
+      * phoneNumber = c.phoneNumber
+      * passportNumber = c.passportNumber (إن وُجد)
+      * cardNumber = c.cardNumber (إن وُجد)
+      * nationalId = c.nationalId (إن وُجد)
+      * insuredName = c.fullName (جديد — لتأمينات السفر)
+      * insuredNo = c.customerNumber (جديد — لتأمينات السفر)
+  * اختبار: إنشاء معاملة travel_insurance بعميل حقيقي نجح مع تعبئة insuredName و insuredNo
+
+- التعديل 2: إلغاء خيار الصلاحيات الدقيقة
+  * إزالة من employees-page.tsx:
+    - إزالة imports: Settings2, Ban, Switch, ScrollArea, serviceConfigs, allServiceTypes, serviceTypeLabels, PermissionLevel
+    - إزالة state: permOpen, permUserId, permUsername, permModules, permHiddenServices, permSaving, permLoading
+    - إزالة functions: openPermissions, savePermissions, toggleServiceHidden, setModuleLevel
+    - إزالة زر الصلاحيات (Settings2) من جدول الموظفين
+    - إزالة نافذة الصلاحيات الدقيقة كاملة (Dialog)
+  * إزالة من dashboard-layout.tsx:
+    - إزالة refreshPermissions من state
+    - إزالة التحديث الدوري كل 60 ثانية للصلاحيات
+  * الاحتفاظ بـ:
+    - API endpoint /api/users/[id]/permissions (للاستخدام المستقبلي)
+    - myPermissions و hiddenServiceTypes في store.ts (ستكون فارغة)
+    - فحوصات الصلاحيات في sidebar.tsx و page.tsx (لن تخفي شيء لعدم وجود صلاحيات)
+
+- التعديل 3: محاذاة وتوحيد حقول النماذج في قوائم الخدمات
+  * إضافة CSS شامل في globals.css لحقول النماذج داخل Dialog:
+    - Labels: min-height 1.25rem، white-space: nowrap، overflow: hidden، text-overflow: ellipsis
+      → يضمن أن جميع التسميات بنفس الارتفاع والمحاذاة، حتى لو كانت الكلمة قصيرة أو طويلة
+    - Input fields: height 2.5rem، width 100%، padding موحد، font-size 0.875rem
+      → جميع حقول النص بنفس الارتفاع والعرض
+    - Select triggers: height 2.5rem (نفس ارتفاع Input)، width 100%، display: flex
+      → قوائم الاختيار بنفس ارتفاع حقول النص
+    - Textarea: min-height 2.5rem، width 100%
+    - Grid: grid-template-columns: repeat(2, minmax(0, 1fr)) — عمودان متساويان
+    - gap: 1rem — تباعد موحد
+    - align-items: start — محاذاة علوية
+    - @media max-width: 640px → عمود واحد على الجوال
+
+Stage Summary:
+- تأمينات السفر الآن تحتوي على حقل اختيار العميل (اسم + رقم) مع تعبئة تلقائية لجميع البيانات المتوفرة
+- خيار الصلاحيات الدقيقة ألغي بالكامل من الواجهة (الزر + النافذة + الحالة + الوظائف)
+- جميع حقول النماذج في قوائم الخدمات موحدة ومحاذاة:
+  * نفس الارتفاع (2.5rem)
+  * نفس العرض (100% من الخلية)
+  * نفس التسمية (1.25rem ارتفاع موحد)
+  * نفس الخط (0.875rem)
+  * نفس التباعد (1rem)
+  * أعمدة متساوية (grid 2 columns)
+- ESLint نظيف، خادم التطوير يستجيب بنجاح (HTTP 200)
+- اختبار إنشاء معاملة تأمينات سفر بعميل حقيقي نجح
