@@ -42,6 +42,11 @@ export async function POST(req: NextRequest) {
       data: { lastLoginAt: new Date() },
     });
 
+    // جلب صلاحيات المستخدم الدقيقة
+    const userPermissions = await db.userPermission.findMany({
+      where: { userId: user.id },
+    });
+
     // إنشاء جلسة
     const sessionId = crypto.randomBytes(32).toString("hex");
     sessions.set(sessionId, {
@@ -76,6 +81,11 @@ export async function POST(req: NextRequest) {
         lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
         createdAt: user.createdAt.toISOString(),
       },
+      permissions: userPermissions.map((p) => ({
+        userId: p.userId,
+        moduleKey: p.moduleKey,
+        level: p.level,
+      })),
     });
 
     // تعيين cookie للجلسة (httpOnly للأمان)
@@ -110,6 +120,7 @@ export async function GET(req: NextRequest) {
 
   const user = await db.user.findUnique({
     where: { id: session.userId },
+    include: { permissions: true },
   });
   if (!user || !user.isActive) {
     sessions.delete(sessionId);
@@ -128,6 +139,11 @@ export async function GET(req: NextRequest) {
       lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
       createdAt: user.createdAt.toISOString(),
     },
+    permissions: user.permissions.map((p) => ({
+      userId: p.userId,
+      moduleKey: p.moduleKey,
+      level: p.level,
+    })),
   });
 }
 

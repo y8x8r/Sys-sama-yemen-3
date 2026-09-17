@@ -94,7 +94,7 @@ export interface User {
 }
 
 /** مستوى الصلاحية الدقيقة لكل وحدة — يحددها المدير العام فقط */
-export type PermissionLevel = "read" | "write" | "update" | "book" | "full";
+export type PermissionLevel = "read" | "write" | "update" | "delete" | "book" | "full" | "hidden";
 
 /** صلاحيات موظف على وحدة محددة */
 export interface UserPermission {

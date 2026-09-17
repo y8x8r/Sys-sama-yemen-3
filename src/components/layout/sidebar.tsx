@@ -138,6 +138,8 @@ export function Sidebar() {
   const logout = useAppStore((s) => s.logout);
   const mobileSidebarOpen = useAppStore((s) => s.mobileSidebarOpen);
   const setMobileSidebarOpen = useAppStore((s) => s.setMobileSidebarOpen);
+  const myPermissions = useAppStore((s) => s.myPermissions);
+  const hiddenServiceTypes = useAppStore((s) => s.hiddenServiceTypes);
 
   // الصلاحيات: الأقسام المسموح بها لكل دور
   const isManager = currentUser?.role === "manager";
@@ -155,6 +157,17 @@ export function Sidebar() {
     // موظف الحجوزات: الخدمات + الإدارات + لوحة التحكم + المراقبة (تأشيرات قاربت الانتهاء + إحصائيات) + السياسات
     if (gKey === "settings") return false;
     if (gKey === "finance") return false;
+    // التحقق من الصلاحيات الدقيقة: هل الوحدة مخفية لهذا المستخدم؟
+    const moduleMap: Record<string, string> = {
+      services: "services",
+      management: "customers",
+      monitoring: "monitoring",
+    };
+    const moduleKey = moduleMap[gKey];
+    if (moduleKey) {
+      const perm = myPermissions.find((p) => p.moduleKey === moduleKey);
+      if (perm?.level === "hidden") return false;
+    }
     // السماح لموظف الحجوزات برؤية قسم المراقبة (تأشيرات قاربت الانتهاء + إحصائيات)
     return true;
   };
@@ -170,6 +183,24 @@ export function Sidebar() {
     if (currentUser?.role === "accountant") {
       if (page === "customers" || page === "agents_companies") return false;
     }
+
+    // التحقق من الصلاحيات الدقيقة لكل صفحة محددة
+    const pageToModule: Record<string, string> = {
+      customers: "customers",
+      agents_companies: "agents_companies",
+      statistics: "statistics",
+      visa_expiry: "visa_expiry",
+      policies: "policies",
+    };
+    const moduleKey = pageToModule[page as string];
+    if (moduleKey) {
+      const perm = myPermissions.find((p) => p.moduleKey === moduleKey);
+      if (perm?.level === "hidden") return false;
+    }
+
+    // إخفاء الخدمات الفردية المحددة
+    if (hiddenServiceTypes.has(page as string)) return false;
+
     return true;
   };
 

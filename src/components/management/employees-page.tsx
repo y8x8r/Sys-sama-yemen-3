@@ -54,7 +54,14 @@ import {
   EyeOff,
   CheckCircle2,
   Loader2,
+  Settings2,
+  Ban,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { serviceConfigs } from "@/components/services/service-configs";
+import { allServiceTypes, serviceTypeLabels } from "@/lib/mock-data";
+import type { PermissionLevel } from "@/lib/types";
 
 export function EmployeesPage() {
   const lang = useAppStore((s) => s.lang);
@@ -84,6 +91,15 @@ export function EmployeesPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
+
+  // إدارة الصلاحيات الدقيقة
+  const [permOpen, setPermOpen] = useState(false);
+  const [permUserId, setPermUserId] = useState<string | null>(null);
+  const [permUsername, setPermUsername] = useState<string>("");
+  const [permModules, setPermModules] = useState<Record<string, PermissionLevel>>({});
+  const [permHiddenServices, setPermHiddenServices] = useState<Set<string>>(new Set());
+  const [permSaving, setPermSaving] = useState(false);
+  const [permLoading, setPermLoading] = useState(false);
 
   const isManager = currentUser?.role === "manager";
 
@@ -139,6 +155,99 @@ export function EmployeesPage() {
     } catch (err) {
       toast.error(lang === "ar" ? "فشل الحذف" : "Failed to delete");
     }
+  };
+
+  // فتح نافذة الصلاحيات الدقيقة لموظف محدد
+  const openPermissions = async (userId: string, username: string, role: Role) => {
+    if (role === "manager") {
+      toast.info(lang === "ar" ? "المدير العام لديه صلاحيات كاملة دائماً" : "Manager always has full permissions");
+      return;
+    }
+    setPermUserId(userId);
+    setPermUsername(username);
+    setPermOpen(true);
+    setPermLoading(true);
+
+    try {
+      const res = await fetch(`/api/users/${userId}/permissions`, { credentials: "include" });
+      const data = await res.json();
+      if (data.ok) {
+        const modules: Record<string, PermissionLevel> = {};
+        const hiddenServices = new Set<string>();
+        for (const p of data.permissions) {
+          if (p.moduleKey.startsWith("service:")) {
+            // خدمة محددة مُخفاة
+            const svc = p.moduleKey.replace("service:", "");
+            if (p.level === "hidden") hiddenServices.add(svc);
+            else modules[p.moduleKey] = p.level as PermissionLevel;
+          } else {
+            modules[p.moduleKey] = p.level as PermissionLevel;
+          }
+        }
+        setPermModules(modules);
+        setPermHiddenServices(hiddenServices);
+      }
+    } catch (err) {
+      toast.error(lang === "ar" ? "فشل تحميل الصلاحيات" : "Failed to load permissions");
+    }
+    setPermLoading(false);
+  };
+
+  const savePermissions = async () => {
+    if (!permUserId) return;
+    setPermSaving(true);
+
+    // بناء قائمة الصلاحيات للإرسال
+    const permissions: Array<{ moduleKey: string; level: string }> = [];
+
+    // إضافة صلاحيات الوحدات
+    for (const [moduleKey, level] of Object.entries(permModules)) {
+      if (level && level !== "read") {
+        permissions.push({ moduleKey, level });
+      }
+    }
+
+    // إضافة الخدمات المخفية
+    for (const svc of permHiddenServices) {
+      permissions.push({ moduleKey: `service:${svc}`, level: "hidden" });
+    }
+
+    try {
+      const res = await fetch(`/api/users/${permUserId}/permissions`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ permissions }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast.success(lang === "ar" ? "تم حفظ الصلاحيات" : "Permissions saved");
+        setPermOpen(false);
+        setPermUserId(null);
+      } else {
+        toast.error(lang === "ar" ? "فشل الحفظ" : "Failed to save");
+      }
+    } catch (err) {
+      toast.error(lang === "ar" ? "فشل الحفظ" : "Failed to save");
+    }
+    setPermSaving(false);
+  };
+
+  const toggleServiceHidden = (serviceType: string) => {
+    const next = new Set(permHiddenServices);
+    if (next.has(serviceType)) next.delete(serviceType);
+    else next.add(serviceType);
+    setPermHiddenServices(next);
+  };
+
+  const setModuleLevel = (moduleKey: string, level: PermissionLevel) => {
+    const next = { ...permModules };
+    if (level === "read") {
+      delete next[moduleKey]; // read = الافتراضي، لا حاجة لحفظه
+    } else {
+      next[moduleKey] = level;
+    }
+    setPermModules(next);
   };
 
   const openEdit = (e: any) => {
@@ -244,6 +353,17 @@ export function EmployeesPage() {
                         <TableCell>{linkedUser && <Badge variant="secondary" className={linkedUser.isActive ? "bg-pastel-mint text-pastel-mint" : "bg-muted text-muted-foreground"}>{linkedUser.isActive ? tr(lang, "active") : tr(lang, "inactive")}</Badge>}</TableCell>
                         <TableCell className="text-end">
                           <div className="flex items-center justify-end gap-1">
+                            {linkedUser && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-violet-600"
+                                title={tr(lang, "edit_permissions")}
+                                onClick={() => openPermissions(linkedUser.id, linkedUser.username, linkedUser.role)}
+                              >
+                                <Settings2 className="w-4 h-4" />
+                              </Button>
+                            )}
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" title={lang === "ar" ? "تعديل" : "Edit"} onClick={() => openEdit(e)}>
                               <Pencil className="w-4 h-4" />
                             </Button>
@@ -359,6 +479,121 @@ export function EmployeesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* نافذة الصلاحيات الدقيقة — قراءة/كتابة/تعديل/حذف/إخفاء خدمات/إخفاء قوائم */}
+      <Dialog open={permOpen} onOpenChange={(o) => { setPermOpen(o); if (!o) { setPermUserId(null); setPermModules({}); setPermHiddenServices(new Set()); } }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <Settings2 className="w-5 h-5 text-primary" />
+              {tr(lang, "granular_permissions")}
+              <Badge variant="secondary" className="bg-pastel-lilac text-pastel-lilac text-[11px] ms-2 num">@{permUsername}</Badge>
+            </DialogTitle>
+          </DialogHeader>
+
+          {permLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <ScrollArea className="flex-1 max-h-[65vh] pe-3">
+              <div className="space-y-5 py-2">
+                {/* القسم الأول: صلاحيات الوحدات */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Shield className="w-4 h-4 text-primary" />
+                    <h3 className="text-sm font-semibold text-foreground">{tr(lang, "permissions_for_modules")}</h3>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mb-3">{tr(lang, "permission_level_label")}</p>
+                  <div className="space-y-2">
+                    {[
+                      { key: "services", labelKey: "module_services" },
+                      { key: "customers", labelKey: "module_customers" },
+                      { key: "agents_companies", labelKey: "module_agents_companies" },
+                      { key: "finance", labelKey: "module_finance" },
+                      { key: "monitoring", labelKey: "module_monitoring" },
+                      { key: "visa_expiry", labelKey: "module_visa_expiry" },
+                      { key: "statistics", labelKey: "module_statistics" },
+                      { key: "policies", labelKey: "module_policies" },
+                    ].map((mod) => {
+                      const currentLevel = permModules[mod.key] ?? "read";
+                      const levels: PermissionLevel[] = ["read", "write", "update", "delete", "full", "hidden"];
+                      return (
+                        <div key={mod.key} className="flex items-center justify-between p-2.5 rounded-lg border border-border hover:bg-accent/20">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-foreground">{tr(lang, mod.labelKey)}</span>
+                          </div>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {levels.map((lvl) => {
+                              const isActive = currentLevel === lvl;
+                              const colorClass =
+                                lvl === "hidden" ? "bg-muted text-muted-foreground border-muted"
+                                : lvl === "delete" ? "bg-red-50 text-red-600 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-900"
+                                : lvl === "full" ? "bg-violet-50 text-violet-700 border-violet-300 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-800"
+                                : lvl === "write" ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900"
+                                : lvl === "update" ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-900"
+                                : isActive ? "bg-primary/10 text-primary border-primary/30"
+                                : "bg-background text-muted-foreground border-border";
+                              return (
+                                <button
+                                  key={lvl}
+                                  type="button"
+                                  onClick={() => setModuleLevel(mod.key, lvl)}
+                                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium border transition-all ${isActive ? colorClass + " ring-1 ring-offset-0" : "bg-background text-muted-foreground border-border hover:bg-accent/40"}`}
+                                >
+                                  {tr(lang, `perm_${lvl}`)}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* القسم الثاني: إخفاء الخدمات الفردية */}
+                <div className="pt-2 border-t border-border">
+                  <div className="flex items-center gap-2 mb-2 mt-3">
+                    <Ban className="w-4 h-4 text-orange-500" />
+                    <h3 className="text-sm font-semibold text-foreground">{tr(lang, "permissions_for_services")}</h3>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mb-3">{tr(lang, "hide_service_help")}</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {allServiceTypes.map((svc) => {
+                      const isHidden = permHiddenServices.has(svc);
+                      const labelKey = serviceTypeLabels[svc as keyof typeof serviceTypeLabels] || svc;
+                      return (
+                        <label
+                          key={svc}
+                          className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors text-xs ${isHidden ? "border-orange-400 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-900" : "border-border hover:bg-accent/20"}`}
+                        >
+                          <Switch
+                            checked={isHidden}
+                            onCheckedChange={() => toggleServiceHidden(svc)}
+                            className="scale-75"
+                          />
+                          <span className={`flex-1 truncate ${isHidden ? "text-orange-700 dark:text-orange-400 line-through" : "text-foreground"}`}>
+                            {tr(lang, labelKey)}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-2 pt-3 border-t border-border">
+            <Button variant="outline" onClick={() => setPermOpen(false)}>{tr(lang, "cancel")}</Button>
+            <Button onClick={savePermissions} disabled={permSaving || permLoading} className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2">
+              {permSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              {tr(lang, "save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

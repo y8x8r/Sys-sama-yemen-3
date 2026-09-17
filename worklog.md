@@ -248,3 +248,83 @@ Stage Summary:
 - إخفاء تغيير كلمة المرور عن غير المدير العام
 - ESLint نظيف
 - تم اختبار: تسجيل الدخول بـ booking1/1234 — لا يرى الإعدادات أو المراقبة أو المالية
+
+---
+Task ID: 7
+Agent: Main Agent (Super Z)
+Task: تنفيذ التعديلات البسيطة المتبقية — انتهاء الجلسة بعد الخمول، توحيد القوائم المنسدلة، نظام الصلاحيات الدقيقة
+
+Work Log:
+- مراجعة شاملة لحالة النظام والتأكد من العناصر المكتملة سابقاً:
+  * 3 خدمات جديدة (الفحص المهني، تفويض فيز، تأشيرة عبور) — مكتملة في service-configs.ts و mock-data.ts و translations
+  * حقل ملاحظات بجانب الحالة — مكتمل في service-page.tsx (سطر 549)
+  * إصلاح حذف المستخدمين لإعادة استخدام اسم المستخدم — مكتمل (DELETE يضع isActive=false، POST يفحص isActive=true فقط)
+  * خاصية Unlock في صفحة الإعدادات — مكتمل (زر يكشف/يخفي كلمات المرور)
+  * زر ملء الشاشة (Fullscreen) — مكتمل في topbar.tsx (Maximize/Minimize)
+  * إخفاء اسم/رقم الوكيل في طباعة الفاتورة — مكتمل في print/invoice/route.ts
+  * حقل الوكالة المفوضة للحج في خدمة الحج العادي — مكتمل (authorizedAgency field)
+  * توسيع صلاحيات موظف الحجوزات — مكتمل في sidebar.tsx و page.tsx
+
+- إضافة نظام انتهاء الجلسة بعد 3 دقائق من الخمول (dashboard-layout.tsx):
+  * تتبع نشاط المستخدم عبر أحداث: mousemove, keydown, click, scroll, touchstart, wheel
+  * مؤقت دوري يفحص كل ثانية مدة الخمول
+  * تنبيه قبل الانتهاء بـ 30 ثانية مع عد تنازلي
+  * زر «البقاء متصلاً» لإعادة ضبط المؤقت
+  * تسجيل خروج تلقائي عند تجاوز 3 دقائق من الخمول
+
+- توحيد تصميم جميع القوائم المنسدلة (globals.css):
+  * توحيد DropdownMenuContent, SelectContent, PopoverContent بنفس الحجم والخط والألوان
+  * حجم خط 0.875rem، نصف قطر 0.75rem، padding 0.375rem
+  * حدود متناسقة (1px solid var(--border))
+  * shadow بنفسجي موحد (rgba(124, 58, 237, 0.12))
+  * عناصر القائمة: padding 0.5rem 0.75rem، font-weight 500، cursor pointer
+  * حالات hover و highlighted بألوان بنفسجية شفافة
+  * دعم RTL كامل: text-align right، flex-direction row-reverse للأيقونات
+  * شريط تمرير موحد (6px width بنفسجي شفاف)
+  * دعم الوضع الليلي مع shadow أغمق وألوان hover مختلفة
+  * SelectTrigger موحد: min-height 2.5rem، hover/focus بنفس النمط البنفسجي
+
+- إضافة نظام الصلاحيات الدقيقة (Granular Permissions):
+  * إنشاء API endpoint جديد: /api/users/[id]/permissions (GET و PUT)
+    - GET يجلب صلاحيات مستخدم محدد (مدير عام فقط)
+    - PUT يستبدل جميع صلاحيات مستخدم (مدير عام فقط)
+    - لا يسمح بتعديل صلاحيات المدير العام (لديه صلاحيات كاملة دائماً)
+    - تسجيل في سجل التدقيق عند كل تعديل
+  * تحديث /api/auth/login (POST و GET) لإرجاع صلاحيات المستخدم الحالي مع بياناته
+  * تحديث store.ts: إضافة myPermissions و hiddenServiceTypes إلى state
+    - تحديث login() و checkSession() لمعالجة الصلاحيات من API
+    - استخراج الخدمات المخفية من صلاحيات المستخدم (service:<type> + level=hidden)
+    - مسح الصلاحيات عند logout
+  * تحديث sidebar.tsx:
+    - allowedGroups() يفحص ما إذا كانت الوحدة مخفية في myPermissions
+    - allowedPage() يفحص ما إذا كانت الصفحة محددة كـ hidden
+    - يخفي الخدمات الفردية المحددة في hiddenServiceTypes
+  * تحديث employees-page.tsx:
+    - إضافة زر «الصلاحيات» (أيقونة Settings2) لكل موظف
+    - نافذة منبثقة كاملة لإدارة الصلاحيات الدقيقة
+    - 6 مستويات صلاحية: read, write, update, delete, full, hidden
+    - 8 وحدات قابلة للضبط: services, customers, agents_companies, finance, monitoring, visa_expiry, statistics, policies
+    - قسم منفصل لإخفاء الخدمات الفردية (24 خدمة) عبر Switch
+    - أزرار ملونة حسب المستوى (أحمر للحذف، بنفسجي للكامل، أخضر للكتابة...)
+    - تنبيه عند محاولة تعديل صلاحيات المدير العام
+  * تحديث types.ts: إضافة "delete" و "hidden" إلى PermissionLevel
+  * إضافة ترجمات جديدة: perm_delete, perm_hidden, granular_permissions, permissions_for_modules, permissions_for_services, module_* (8 وحدات), hide_service_help, hide_menu_help, session_timeout_warning
+
+- إصلاح أخطاء TypeScript المكتشفة:
+  * إزالة مفتاح f_departure_date المكرر في ترجمات العربية (سطر 434)
+  * إزالة مفتاح f_departure_date المكرر في ترجمات الإنجليزية (سطر 835)
+  * هذه كانت أخطاء موجودة سابقاً، تم إصلاحها
+
+Stage Summary:
+- نظام انتهاء الجلسة بعد 3 دقائق خمول يعمل: تنبيه قبل 30 ثانية، تسجيل خروج تلقائي
+- جميع القوائم المنسدلة (Dropdown/Select/Popover) موحدة التصميم بالكامل (حجم، خط، ألوان، حدود، shadow، RTL، scroll، dark mode)
+- نظام الصلاحيات الدقيقة كامل:
+  * المدير العام يدير صلاحيات كل موظف على حدة
+  * 6 مستويات (قراءة/كتابة/تعديل/حذف/كامل/مخفي)
+  * 8 وحدات قابلة للضبط (الخدمات، العملاء، الوكلاء، المالية، المراقبة، تأشيرات، إحصائيات، سياسات)
+  * 24 خدمة فردية يمكن إخفاءها بشكل مستقل
+  * التطبيق الفعلي في الشريط الجانبي: القوائم المخفية لا تظهر، الخدمات المخفية لا تظهر
+- ESLint نظيف بدون أخطاء
+- خادم التطوير يستجيب بنجاح (HTTP 200)
+- اختبار API: login يعيد صلاحيات المستخدم، permissions endpoint يعمل (GET/PUT)
+- الترجمات الثنائية محدثة (عربي + إنجليزي) لجميع المفاتيح الجديدة

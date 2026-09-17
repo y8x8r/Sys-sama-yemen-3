@@ -318,3 +318,200 @@
 
 /* Print styles — تم إزالة قواعد @media print القديمة التي كانت تخفي المحتوى.
    الطباعة الآن تتم عبر صفحة مستقلة /api/print/invoice بدلاً من window.print() على لوحة التحكم. */
+
+/* =================================================================== */
+/* توحيد تصميم جميع القوائم المنسدلة — Dropdown / Select / Popover     */
+/* =================================================================== */
+/* الحجم، الخط، الألوان، المحاذاة، التباعد، الحدود، ودعم RTL متناسق     */
+/* =================================================================== */
+
+/* القائمة المنسدلة (DropdownMenuContent) */
+[data-slot="dropdown-menu-content"] {
+  min-width: 12rem !important;
+  padding: 0.375rem !important;
+  border-radius: 0.75rem !important;
+  border: 1px solid var(--border) !important;
+  background-color: var(--popover) !important;
+  color: var(--popover-foreground) !important;
+  font-family: var(--font-cairo), "Segoe UI", sans-serif !important;
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.12), 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+  z-index: 100 !important;
+}
+
+/* عناصر القائمة المنسدلة */
+[data-slot="dropdown-menu-item"] {
+  padding: 0.5rem 0.75rem !important;
+  border-radius: 0.5rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  color: var(--popover-foreground) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  cursor: pointer !important;
+  transition: background-color 0.15s ease, color 0.15s ease !important;
+  outline: none !important;
+}
+
+[data-slot="dropdown-menu-item"]:hover,
+[data-slot="dropdown-menu-item"][data-highlighted] {
+  background-color: rgba(124, 58, 237, 0.08) !important;
+  color: var(--primary) !important;
+}
+
+[data-slot="dropdown-menu-item"][data-highlighted] {
+  background-color: rgba(124, 58, 237, 0.12) !important;
+}
+
+/* فاصل القائمة */
+[data-slot="dropdown-menu-separator"] {
+  height: 1px !important;
+  margin: 0.375rem 0.5rem !important;
+  background-color: var(--border) !important;
+}
+
+/* قائمة Select (SelectContent) */
+[data-slot="select-content"] {
+  min-width: var(--radix-select-trigger-width) !important;
+  padding: 0.375rem !important;
+  border-radius: 0.75rem !important;
+  border: 1px solid var(--border) !important;
+  background-color: var(--popover) !important;
+  color: var(--popover-foreground) !important;
+  font-family: var(--font-cairo), "Segoe UI", sans-serif !important;
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.12), 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+  z-index: 100 !important;
+  max-height: 18rem !important;
+  overflow-y: auto !important;
+}
+
+/* عناصر Select */
+[data-slot="select-item"] {
+  padding: 0.5rem 0.75rem !important;
+  border-radius: 0.5rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  color: var(--popover-foreground) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  cursor: pointer !important;
+  transition: background-color 0.15s ease, color 0.15s ease !important;
+  outline: none !important;
+}
+
+[data-slot="select-item"]:hover,
+[data-slot="select-item"][data-highlighted] {
+  background-color: rgba(124, 58, 237, 0.08) !important;
+  color: var(--primary) !important;
+}
+
+[data-slot="select-item"][data-state="checked"] {
+  background-color: rgba(124, 58, 237, 0.12) !important;
+  color: var(--primary) !important;
+  font-weight: 600 !important;
+}
+
+/* زر تشغيل Select (SelectTrigger) */
+[data-slot="select-trigger"] {
+  min-height: 2.5rem !important;
+  padding: 0.5rem 0.75rem !important;
+  border-radius: 0.625rem !important;
+  border: 1px solid var(--border) !important;
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+  font-family: var(--font-cairo), "Segoe UI", sans-serif !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+[data-slot="select-trigger"]:hover {
+  border-color: rgba(124, 58, 237, 0.4) !important;
+}
+
+[data-slot="select-trigger"]:focus,
+[data-slot="select-trigger"][data-state="open"] {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12) !important;
+  outline: none !important;
+}
+
+/* قيمة Select (SelectValue) */
+[data-slot="select-value"] {
+  flex: 1 !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  text-align: start !important;
+}
+
+/* Popover content */
+[data-slot="popover-content"] {
+  border-radius: 0.75rem !important;
+  border: 1px solid var(--border) !important;
+  background-color: var(--popover) !important;
+  color: var(--popover-foreground) !important;
+  font-family: var(--font-cairo), "Segoe UI", sans-serif !important;
+  font-size: 0.875rem !important;
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.12), 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+  z-index: 100 !important;
+}
+
+/* تنسيق RTL للقوائم: المحاذاة تبدأ من اليمين */
+[dir="rtl"] [data-slot="dropdown-menu-content"],
+[dir="rtl"] [data-slot="select-content"],
+[dir="rtl"] [data-slot="popover-content"] {
+  text-align: right !important;
+}
+
+[dir="rtl"] [data-slot="dropdown-menu-item"],
+[dir="rtl"] [data-slot="select-item"] {
+  flex-direction: row-reverse !important;
+}
+
+/* شريط التمرير الموحد للقوائم */
+[data-slot="select-content"]::-webkit-scrollbar,
+[data-slot="dropdown-menu-content"]::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+[data-slot="select-content"]::-webkit-scrollbar-track,
+[data-slot="dropdown-menu-content"]::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+[data-slot="select-content"]::-webkit-scrollbar-thumb,
+[data-slot="dropdown-menu-content"]::-webkit-scrollbar-thumb {
+  background-color: rgba(124, 58, 237, 0.3) !important;
+  border-radius: 3px !important;
+}
+
+[data-slot="select-content"]::-webkit-scrollbar-thumb:hover,
+[data-slot="dropdown-menu-content"]::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(124, 58, 237, 0.5) !important;
+}
+
+/* الوضع الليلي: تأكيد تناسق الألوان */
+.dark [data-slot="dropdown-menu-content"],
+.dark [data-slot="select-content"],
+.dark [data-slot="popover-content"] {
+  background-color: var(--card) !important;
+  color: var(--card-foreground) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+.dark [data-slot="dropdown-menu-item"]:hover,
+.dark [data-slot="dropdown-menu-item"][data-highlighted],
+.dark [data-slot="select-item"]:hover,
+.dark [data-slot="select-item"][data-highlighted] {
+  background-color: rgba(168, 85, 247, 0.15) !important;
+  color: #C4B5FD !important;
+}

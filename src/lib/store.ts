@@ -197,6 +197,8 @@ interface AppState {
   employees: Employee[];
   users: User[];
   userPermissions: UserPermission[];
+  myPermissions: UserPermission[]; // صلاحيات المستخدم الحالي الدقيقة
+  hiddenServiceTypes: Set<string>; // أنواع الخدمات المخفية للمستخدم الحالي
   agents: Agent[];
   transportCompanies: TransportCompany[];
   services: ServiceRecord[];
@@ -274,6 +276,8 @@ export const useAppStore = create<AppState>()((set, get) => ({
   employees: [],
   users: [],
   userPermissions: [],
+  myPermissions: [],
+  hiddenServiceTypes: new Set<string>(),
   agents: [],
   transportCompanies: [],
   services: [],
@@ -297,7 +301,25 @@ export const useAppStore = create<AppState>()((set, get) => ({
       });
       const data = await res.json();
       if (data.ok) {
-        set({ isAuthed: true, currentUser: data.user, currentPage: "dashboard" });
+        // معالجة الصلاحيات الدقيقة للمستخدم الحالي
+        const perms: UserPermission[] = (data.permissions ?? []).map((p: any) => ({
+          userId: p.userId,
+          moduleKey: p.moduleKey,
+          level: p.level as PermissionLevel,
+        }));
+        const hidden = new Set<string>();
+        for (const p of perms) {
+          if (p.moduleKey.startsWith("service:") && p.level === "hidden") {
+            hidden.add(p.moduleKey.replace("service:", ""));
+          }
+        }
+        set({
+          isAuthed: true,
+          currentUser: data.user,
+          currentPage: "dashboard",
+          myPermissions: perms,
+          hiddenServiceTypes: hidden,
+        });
         await get().fetchAllData();
         return true;
       }
@@ -324,6 +346,8 @@ export const useAppStore = create<AppState>()((set, get) => ({
       auditLogs: [],
       notifications: [],
       dashboardStats: null,
+      myPermissions: [],
+      hiddenServiceTypes: new Set<string>(),
     });
   },
 
@@ -337,11 +361,25 @@ export const useAppStore = create<AppState>()((set, get) => ({
         const savedPage = typeof window !== "undefined"
           ? sessionStorage.getItem("sama_current_page") as NavPage | null
           : null;
+        // معالجة الصلاحيات الدقيقة للمستخدم الحالي
+        const perms: UserPermission[] = (data.permissions ?? []).map((p: any) => ({
+          userId: p.userId,
+          moduleKey: p.moduleKey,
+          level: p.level as PermissionLevel,
+        }));
+        const hidden = new Set<string>();
+        for (const p of perms) {
+          if (p.moduleKey.startsWith("service:") && p.level === "hidden") {
+            hidden.add(p.moduleKey.replace("service:", ""));
+          }
+        }
         set({
           isAuthed: true,
           currentUser: data.user,
           authLoading: false,
           currentPage: savedPage || "dashboard",
+          myPermissions: perms,
+          hiddenServiceTypes: hidden,
         });
         await get().fetchAllData();
       } else {
