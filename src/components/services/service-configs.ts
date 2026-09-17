@@ -133,6 +133,8 @@ export const serviceConfigs: Record<string, ServiceConfig> = {
       { name: "customerName", labelKey: "f_customer_name", type: "text", fromCustomer: "fullName", required: true },
       { name: "phoneNumber", labelKey: "f_phone", type: "tel" },
       { name: "cardNumber", labelKey: "f_card_number", type: "text" },
+      { name: "agentName", labelKey: "f_agent_name", type: "text" },
+      { name: "agentNumber", labelKey: "f_agent_number", type: "tel" },
       { name: "requestType", labelKey: "f_request_type", type: "select", options: [
         { value: "new", labelKey: "list_new" },
         { value: "renew", labelKey: "list_renew" },

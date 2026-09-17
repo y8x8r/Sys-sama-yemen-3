@@ -154,6 +154,21 @@ export function ServicePage({ config }: Props) {
     return l;
   }, [services, config.serviceType, search, statusFilter]);
 
+  // إلغاء تكرار العملاء حسب رقم الهاتف — يظهر العميل مرة واحدة فقط في القائمة المنسدلة
+  // يُطبق على خدمات: الفحص المهني، تفويض الفيز، تأشيرة العبور (التي تربط رقم الهاتف بالعميل)
+  const dedupedCustomers = useMemo(() => {
+    const dedupServices = ["professional_exam", "visa_authorization", "transit_visa"];
+    if (!dedupServices.includes(config.serviceType)) return customers;
+    const seen = new Set<string>();
+    return customers.filter((c) => {
+      // العملاء بدون رقم هاتف يظهرون جميعاً (لا تكرار للقيم الفارغة)
+      if (!c.phoneNumber || c.phoneNumber.trim() === "") return true;
+      if (seen.has(c.phoneNumber)) return false;
+      seen.add(c.phoneNumber);
+      return true;
+    });
+  }, [customers, config.serviceType]);
+
   const resetForm = () => {
     setForm({});
     setErrors({});
@@ -403,7 +418,7 @@ const exportExcel = (period: "weekly" | "monthly" | "yearly") => {
               <SelectValue placeholder={tr(lang, "select_customer")} />
             </SelectTrigger>
             <SelectContent>
-              {customers.map((c) => (
+              {dedupedCustomers.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.fullName} — <span className="num">{c.customerNumber}</span>
                 </SelectItem>
