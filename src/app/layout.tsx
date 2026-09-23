@@ -32,6 +32,21 @@ export default function RootLayout({
       >
         {children}
         <Toaster />
+
+        {/* كود إزالة شريط وأدوات نتفلاي تلقائياً */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              const removeDrawer = () => {
+                const elements = document.querySelectorAll(
+                  'netlify-drawer, #netlify-drawer-root, div[data-netlify-drawer], [class*="netlify-drawer"], iframe[src*="netlify"]'
+                );
+                elements.forEach(el => el.remove());
+              };
+              setInterval(removeDrawer, 200);
+            `,
+          }}
+        />
       </body>
     </html>
   );
