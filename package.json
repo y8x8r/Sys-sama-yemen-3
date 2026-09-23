@@ -1,5 +1,5 @@
 {
- "name": "Sys-sama-yemen-3",
+  "name": "Sys-sama-yemen-3",
   "version": "0.2.1",
   "private": true,
   "scripts": {
@@ -12,7 +12,6 @@
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
     "seed": "tsx scripts/seed.ts"
-  },
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
