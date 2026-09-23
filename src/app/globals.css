@@ -720,4 +720,19 @@
   [data-slot="dialog-content"] [class*="grid-cols"] {
     grid-template-columns: 1fr !important;
   }
+  
+}
+/* إخفاء شريط وأدوات نتفلاي نهائياً في الهاتف والكمبيوتر */
+netlify-drawer,
+#netlify-drawer-root,
+div[data-netlify-drawer],
+div[class*="netlify-drawer"],
+iframe[src*="netlify"],
+[data-netlify-deploy-id] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  width: 0 !important;
+  pointer-events: none !important;
 }
