@@ -1,39 +1,39 @@
 // Prisma schema — سما اليمن للسفريات والسياحة
-// قاعدة بيانات SQLite محلية (ملف على القرص) — جاهزة للترحيل إلى PostgreSQL مستقبلاً
+// قاعدة بيانات PostgreSQL سحابية على Supabase
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  // يتم ضبطها من متغير البيئة DATABASE_URL — افتراضياً ملف محلي
-  url = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ==================== الهوية والصلاحيات ====================
 
 model User {
-  id                 String   @id @default(cuid())
-  username           String   @unique
+  id                 String    @id @default(cuid())
+  username           String    @unique
   passwordHash       String
-  role               String   @default("booking_officer") // manager | accountant | booking_officer
-  employeeId         String?  @unique
-  isActive           Boolean  @default(true)
-  mustChangePassword Boolean  @default(false)
-  // أسئلة استعادة كلمة المرور — للمدير العام فقط، تُخزَّن مجزّأة
-  securityQ1Hash     String?  // متى تم افتتاح مكتب سما اليمن؟
-  securityQ2Hash     String?  // ما هو إيميلك الشخصي؟
+  role               String    @default("booking_officer") // manager | accountant | booking_officer
+  employeeId         String?   @unique
+  isActive           Boolean   @default(true)
+  mustChangePassword Boolean   @default(false)
+  securityQ1Hash     String?
+  securityQ2Hash     String?
   lastLoginAt        DateTime?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  employee    Employee? @relation("UserEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
+  employee  Employee?        @relation("UserEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
   permissions UserPermission[]
   auditLogs   AuditLog[]
 
   @@index([role])
 }
+
 model UserPermission {
   id        String @id @default(cuid())
   userId    String
@@ -58,9 +58,9 @@ model Employee {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  user       User?          @relation("UserEmployee")
-  services   ServiceRecord[] @relation("HandledByEmployee")
-  auditLogs  AuditLog[]      @relation("PerformedByEmployee")
+  user      User?           @relation("UserEmployee")
+  services  ServiceRecord[] @relation("HandledByEmployee")
+  auditLogs AuditLog[]      @relation("PerformedByEmployee")
 
   @@index([isActive])
 }
@@ -86,6 +86,7 @@ model Customer {
   @@index([fullName])
   @@index([phoneNumber])
   @@index([passportNumber])
+  @@index([createdAt(sort: Desc)])
 }
 
 model Agent {
@@ -111,28 +112,26 @@ model TransportCompany {
 // ==================== المعاملات والخدمات ====================
 
 model ServiceRecord {
-  id             String   @id @default(cuid())
-  serviceType    String
-  serviceNumber  String   @unique
-  customerId     String
-  customerName   String
+  id                  String    @id @default(cuid())
+  serviceType         String
+  serviceNumber       String    @unique
+  customerId          String
+  customerName        String
   handledByEmployeeId String?
-  status         String   @default("pending") // pending | processing | completed | cancelled | delivered
-  price          Float
-  paid           Float
-  remaining      Float
-  currency       String   @default("SAR") // SAR | YER | USD
-  paymentMethod  String?  // cash | transfer | wallet
-  transferNo     String?
-  notes          String?
-  // حقول الإلغاء
-  cancelReason   String?
-  cancelledAt    DateTime?
-  cancelledBy    String?
-  // تفاصيل الخدمة الخاصة بكل نوع (JSON)
-  details        String   @default("{}") // JSON string
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  status              String    @default("pending") // pending | processing | completed | cancelled | delivered
+  price               Float
+  paid                Float
+  remaining           Float
+  currency            String    @default("SAR") // SAR | YER | USD
+  paymentMethod       String?   // cash | transfer | wallet
+  transferNo          String?
+  notes               String?
+  cancelReason        String?
+  cancelledAt         DateTime?
+  cancelledBy         String?
+  details             Json      @default("{}")
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   customer Customer  @relation(fields: [customerId], references: [id], onDelete: Restrict)
   employee Employee? @relation("HandledByEmployee", fields: [handledByEmployeeId], references: [id], onDelete: SetNull)
@@ -164,8 +163,8 @@ model Invoice {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  customer Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  service  ServiceRecord  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  customer Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  service  ServiceRecord @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   payments Payment[]
 
   @@index([customerId])
@@ -203,7 +202,7 @@ model Payment {
 model Expense {
   id            String   @id @default(cuid())
   expenseNumber String   @unique
-  category      String   // غرض الصرف
+  category      String
   description   String
   beneficiary   String   @default("—")
   amount        Float
@@ -222,19 +221,19 @@ model Expense {
 // ==================== المراقبة ====================
 
 model AuditLog {
-  id              String   @id @default(cuid())
-  occurredAt      DateTime @default(now())
-  actorUsername   String
-  actorRole       String
-  action          String
-  moduleKey       String
-  entityType      String   @default("")
-  entityId        String?
-  summary         String
-  beforeData      String?
-  afterData       String?
-  actorUserId     String?
-  employeeId      String?
+  id             String   @id @default(cuid())
+  occurredAt     DateTime @default(now())
+  actorUsername  String
+  actorRole      String
+  action         String
+  moduleKey      String
+  entityType     String   @default("")
+  entityId       String?
+  summary        String
+  beforeData     String?
+  afterData      String?
+  actorUserId    String?
+  employeeId     String?
 
   user     User?     @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
   employee Employee? @relation("PerformedByEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
@@ -264,7 +263,7 @@ model Policy {
   id          String   @id @default(cuid())
   title       String
   description String
-  category    String   @default("general") // general | cancellation | refund | payment | operational
+  category    String   @default("general")
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -276,15 +275,15 @@ model Policy {
 // ==================== الصندوق/الحساب المحاسبي ====================
 
 model CashBox {
-  id          String   @id @default(cuid())
-  code        String   @unique // CASH | BANK_SAR | BANK_USD | ...
-  name        String
-  kind        String   @default("cash") // cash | bank
-  currency    String   @default("SAR") // SAR | YER | USD
-  balance     Float    @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  kind      String   @default("cash")
+  currency  String   @default("SAR")
+  balance   Float    @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   transactions TransactionLedger[]
 
@@ -292,22 +291,22 @@ model CashBox {
   @@index([isActive])
 }
 
-// ==================== سجل العمليات المالية (Double-Entry Ledger) ====================
+// ==================== سجل العمليات المالية ====================
 
 model TransactionLedger {
-  id            String   @id @default(cuid())
-  txNumber      String   @unique // TX-2026-00001
-  cashBoxId     String
-  cashBoxCode   String // اسم الصندوق للحفظ التاريخي
-  direction     String   // debit (خصم/صرف) | credit (إضافة/تحصيل)
-  amount        Float
-  currency      String   @default("SAR")
-  reason        String   // سبب الحركة
-  moduleKey     String   // expenses | payments | services | manual
-  relatedEntityType String? // expense | payment | service | invoice
-  relatedEntityId String?
-  actorUsername String
-  createdAt     DateTime @default(now())
+  id                String   @id @default(cuid())
+  txNumber          String   @unique
+  cashBoxId         String
+  cashBoxCode       String
+  direction         String   // debit | credit
+  amount            Float
+  currency          String   @default("SAR")
+  reason            String
+  moduleKey         String
+  relatedEntityType String?
+  relatedEntityId   String?
+  actorUsername     String
+  createdAt         DateTime @default(now())
 
   cashBox CashBox @relation(fields: [cashBoxId], references: [id], onDelete: Restrict)
 
