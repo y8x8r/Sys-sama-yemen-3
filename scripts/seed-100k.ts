@@ -1,9 +1,7 @@
-// scripts/seed-100k.ts
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// قواميس بيانات يمنية واقعية لتوليد العملاء
 const firstNames = ["محمد", "أحمد", "علي", "ياسر", "صالح", "هشام", "بشار", "عبدالله", "فاطمة", "عبير", "مريم", "سارة", "عصام", "عمار"];
 const middleNames = ["محمد", "علي", "عبدالرحمن", "صالح", "قاسم", "عبدالله", "حسين", "يحيى", "نبيل"];
 const lastNames = ["سناح", "الشرعبي", "الهمداني", "الخولاني", "الحاشدي", "الريمي", "الصنعاني", "الآنسي", "المقطري", "السنيدار"];
@@ -21,12 +19,9 @@ function generateCustomers(count: number, startIndex: number) {
 
     customers.push({
       fullName: `${fName} ${mName} ${lName}`,
-      // توليد رقم عميل فريد يجمع بين التوقيت وتسلسل الحلقة
       customerNumber: `CUST-${Date.now().toString().slice(-4)}-${startIndex + i}`,
       phoneNumber: `${prefix}${phoneBase}`,
-      // توليد رقم جواز بنسبة 70% من العملاء
       passportNumber: Math.random() > 0.3 ? `0${Math.floor(10000000 + Math.random() * 90000000)}` : null,
-      // توليد رقم وطني بنسبة 50% من العملاء
       nationalId: Math.random() > 0.5 ? `0101${Math.floor(1000000 + Math.random() * 9000000)}` : null,
       cardNumber: Math.random() > 0.8 ? `CARD-${Math.floor(1000 + Math.random() * 9000)}` : null,
       referralSource: sources[Math.floor(Math.random() * sources.length)],
@@ -38,24 +33,23 @@ function generateCustomers(count: number, startIndex: number) {
 
 async function main() {
   const TOTAL_RECORDS = 100000;
-  const BATCH_SIZE = 5000; // رفع البيانات على دفعات لتجنب انهيار الذاكرة
+  // التخفيض إلى 500 لضمان نجاح الرفع للسحابة دون انقطاع الاتصال
+  const BATCH_SIZE = 500; 
   
-  console.log(`بدء حقن ${TOTAL_RECORDS} عميل في قاعدة البيانات...`);
-  console.time("SeedDuration"); // بدء المؤقت لحساب سرعة الإدراج
+  console.log(`بدء حقن ${TOTAL_RECORDS} عميل في قاعدة البيانات السحابية...`);
 
   for (let i = 0; i < TOTAL_RECORDS; i += BATCH_SIZE) {
     const batch = generateCustomers(BATCH_SIZE, i);
     
     await prisma.customer.createMany({
       data: batch,
-      skipDuplicates: true, // تجاوز أي تعارض في البيانات إن وجد
+      skipDuplicates: true,
     });
     
     console.log(`تم رفع ${i + BATCH_SIZE} عميل بنجاح...`);
   }
 
-  console.timeEnd("SeedDuration"); // إنهاء المؤقت وعرض الوقت المستغرق
-  console.log("تمت العملية بنجاح! يمكنك الآن فتح النظام وفحص الأداء.");
+  console.log("تمت العملية بنجاح! افتح موقعك الآن لفحص العملاء.");
 }
 
 main()
