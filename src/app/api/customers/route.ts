@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getCurrentUser, logAudit, genNumber, nextSeq, checkModuleAccess } from "@/lib/auth";
+import { getCurrentUser, logAudit, nextSeq, checkModuleAccess } from "@/lib/auth";
 
 /** GET /api/customers — قائمة العملاء مع تقسيم صفحات (100 عميل لكل دفعة) */
 export async function GET(req: NextRequest) {
@@ -13,7 +13,6 @@ export async function GET(req: NextRequest) {
   const limit = parseInt(searchParams.get("limit") ?? "100", 10);
   const skip = (page - 1) * limit;
 
-  // شرط البحث
   const whereCondition = q
     ? {
         OR: [
@@ -25,13 +24,12 @@ export async function GET(req: NextRequest) {
       }
     : undefined;
 
-  // جلب 100 عميل فقط مع حساب الإجمالي بالتوازي لتسريع الاستجابة
   const [customers, total] = await Promise.all([
     db.customer.findMany({
       where: whereCondition,
       orderBy: { createdAt: "desc" },
-      take: limit, // جلب 100 فقط
-      skip: skip,  // تخطي ما سبق عرضه
+      take: limit,
+      skip: skip,
     }),
     db.customer.count({
       where: whereCondition,
@@ -58,29 +56,12 @@ export async function GET(req: NextRequest) {
     })),
   });
 }
-  return NextResponse.json({
-    ok: true,
-    customers: customers.map((c) => ({
-      id: c.id,
-      customerNumber: c.customerNumber,
-      fullName: c.fullName,
-      phoneNumber: c.phoneNumber,
-      passportNumber: c.passportNumber,
-      nationalId: c.nationalId,
-      cardNumber: c.cardNumber,
-      joinedOn: c.joinedOn.toISOString().split("T")[0],
-      referralSource: c.referralSource,
-      isActive: c.isActive,
-      createdAt: c.createdAt.toISOString(),
-    })),
-  });
-}
 
 /** POST /api/customers — إضافة عميل جديد (مدير عام + موظف حجوزات فقط) */
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req);
   if (!user) return NextResponse.json({ ok: false, error: "not_authed" }, { status: 401 });
-  // المحاسب لا يستطيع إنشاء عملاء
+
   const accessCheck = checkModuleAccess(user, "customers");
   if (accessCheck && user.role === "accountant") return accessCheck;
 
@@ -111,7 +92,14 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  await logAudit(user, "إضافة عميل", "customers", `إضافة عميل جديد: ${customer.fullName} (${customer.customerNumber})`, "customer", customer.id);
+  await logAudit(
+    user,
+    "إضافة عميل",
+    "customers",
+    `إضافة عميل جديد: ${customer.fullName} (${customer.customerNumber})`,
+    "customer",
+    customer.id
+  );
 
   return NextResponse.json({
     ok: true,
