@@ -51,8 +51,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           if (existing) {
             throw new Error("username_exists");
           }
-          // التحقق من وجود مستخدم معطلون بنفس اسم المستخدم
-          // ( Prisma @unique constraint يمنع التكرار حتى لو كان معطّلاً)
+          
+          // تحرير اسم المستخدم في حال كان محجوزاً لمستخدم معطل قديم
           const inactiveUser = await tx.user.findFirst({
             where: { username: { equals: username.trim() }, isActive: false, id: { not: linkedUser.id } },
           });
@@ -97,7 +97,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
  *
  * يقوم بـ:
  *   1. حذف صلاحيات المستخدم (user_permissions)
- *   2. تعطيل حساب المستخدم المرتبط (users.isActive = false)
+ *   2. تعطيل حساب المستخدم المرتبط وتحرير اسم المستخدم لكي لا يتعارض مع إضافات جديدة
  *   3. حذف الموظف من جدول employees
  *
  * المدير العام فقط يستطيع الحذف.
@@ -125,10 +125,16 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       if (linkedUser) {
         // 2. حذف جميع صلاحيات المستخدم
         await tx.userPermission.deleteMany({ where: { userId: linkedUser.id } });
-        // 3. تعطيل حساب المستخدم
+        
+        // 3. تعطيل حساب المستخدم وتحرير الـ username بإضافة لاحقة الحذف
+        const suffix = `_deleted_${Date.now()}`;
         await tx.user.update({
           where: { id: linkedUser.id },
-          data: { isActive: false, employeeId: null },
+          data: { 
+            isActive: false, 
+            employeeId: null,
+            username: `${linkedUser.username}${suffix}` 
+          },
         });
       }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useAppStore } from "@/lib/store";
 import { tr } from "@/lib/translations";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress"; // تم استيراد مكون شريط التحميل
 import {
   Dialog,
   DialogContent,
@@ -62,7 +63,9 @@ export function CustomersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   
-  // تقسيم الدفعات (100 عميل)
+  // شريط التحميل الوهمي السريع
+  const [progress, setProgress] = useState(13);
+  
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -85,13 +88,14 @@ export function CustomersPage() {
   const [customFromDate, setCustomFromDate] = useState("");
   const [customToDate, setCustomToDate] = useState("");
 
-  // جلب العملاء بدفعات من السيرفر وقاعدة البيانات
   const loadCustomers = async (pageNumber = 1, searchQuery = search) => {
     try {
       if (pageNumber === 1) setLoading(true);
       else setLoadingMore(true);
 
       const res = await fetch(`/api/customers?page=${pageNumber}&limit=100&q=${encodeURIComponent(searchQuery)}`);
+      if (!res.ok) throw new Error("Network response was not ok");
+      
       const data = await res.json();
 
       if (data.ok && Array.isArray(data.customers)) {
@@ -113,13 +117,23 @@ export function CustomersPage() {
     }
   };
 
-  // تحميل أولي عند فتح الصفحة والبحث اللحظي مع تأخير بسيط
+  // التأكد من جلب البيانات عند التحميل الأولي ومع كل عملية بحث
   useEffect(() => {
     const timer = setTimeout(() => {
       loadCustomers(1, search);
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
+
+  // التحكم بسرعة شريط التحميل البصري
+  useEffect(() => {
+    if (loading) {
+      const timer = setTimeout(() => setProgress(100), 150); // يكتمل بسرعة خلال 150 ملي ثانية
+      return () => clearTimeout(timer);
+    } else {
+      setProgress(13); // إعادة ضبط الشريط للتحميل القادم
+    }
+  }, [loading]);
 
   const openCreate = () => {
     setForm({ fullName: "", phoneNumber: "", passportNumber: "", nationalId: "", cardNumber: "", referralSource: "" });
@@ -382,10 +396,13 @@ export function CustomersPage() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12">
-                      <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                        <Loader2 className="w-6 h-6 animate-spin" />
-                        <p className="text-sm">{lang === "ar" ? "جاري تحميل العملاء..." : "Loading customers..."}</p>
+                    <TableCell colSpan={7} className="text-center py-16">
+                      <div className="flex flex-col items-center justify-center gap-4 max-w-sm mx-auto">
+                        <p className="text-muted-foreground text-sm font-medium animate-pulse">
+                          {lang === "ar" ? "جاري تحميل بيانات العملاء..." : "Loading customers data..."}
+                        </p>
+                        {/* تم إضافة شريط التقدم هنا ليملأ بنسبة 100% بسرعة */}
+                        <Progress value={progress} className="w-full h-2" />
                       </div>
                     </TableCell>
                   </TableRow>
@@ -445,7 +462,6 @@ export function CustomersPage() {
             </Table>
           </div>
 
-          {/* زر تحميل الـ 100 عميل التالية */}
           {hasMore && (
             <div className="flex justify-center p-4 border-t border-border">
               <Button
