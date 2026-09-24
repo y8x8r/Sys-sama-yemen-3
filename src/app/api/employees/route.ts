@@ -1,49 +1,3 @@
-import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { getCurrentUser, logAudit } from "@/lib/auth";
-
-/** GET /api/employees — قائمة الموظفين */
-export async function GET(req: NextRequest) {
-  const user = await getCurrentUser(req);
-  if (!user) return NextResponse.json({ ok: false, error: "not_authed" }, { status: 401 });
-
-  const employees = await db.employee.findMany({
-    include: { user: true },
-    orderBy: { createdAt: "desc" },
-  });
-
-  return NextResponse.json({
-    ok: true,
-    employees: employees.map((e) => ({
-      id: e.id,
-      employeeNumber: e.employeeNumber,
-      fullName: e.fullName,
-      hiredOn: e.hiredOn.toISOString().split("T")[0],
-      jobTitle: e.jobTitle,
-      isActive: e.isActive,
-      createdAt: e.createdAt.toISOString(),
-      linkedUser: e.user
-        ? {
-            id: e.user.id,
-            username: e.user.username,
-            role: e.user.role,
-            isActive: e.user.isActive,
-            lastLoginAt: e.user.lastLoginAt?.toISOString() ?? null,
-          }
-        : null,
-    })),
-    users: employees.filter((e) => e.user).map((e) => ({
-      id: e.user!.id,
-      username: e.user!.username,
-      role: e.user!.role,
-      employeeId: e.user!.employeeId,
-      isActive: e.user!.isActive,
-      lastLoginAt: e.user!.lastLoginAt?.toISOString() ?? null,
-      createdAt: e.user!.createdAt.toISOString(),
-    })),
-  });
-}
-
 /**
  * POST /api/employees — إنشاء حساب موظف
  *
@@ -60,42 +14,63 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { fullName, username, role, password } = body;
 
-  if (!fullName?.trim() || !username?.trim() || !password || password.length < 4) {
+  const cleanUsername = username?.trim().toLowerCase();
+
+  if (!fullName?.trim() || !cleanUsername || !password || password.length < 4) {
     return NextResponse.json(
       { ok: false, error: "missing_fields_or_short_password" },
       { status: 400 }
     );
   }
 
-  // التحقق من عدم تكرار اسم المستخدم — فقط للمستخدمين النشطين
-  // المستخدمون المحذوفون/المعطلون لا يمنعون إعادة استخدام اسم المستخدم
-  const exists = await db.user.findFirst({
-    where: { username: { equals: username.trim() }, isActive: true },
+  // 1. التحقق من عدم وجود مستخدم "نشط" بنفس الاسم
+  const activeUser = await db.user.findFirst({
+    where: {
+      username: { equals: cleanUsername, mode: "insensitive" },
+      isActive: true,
+    },
   });
-  if (exists) {
-    return NextResponse.json({ ok: false, error: "username_exists" }, { status: 400 });
+
+  if (activeUser) {
+    return NextResponse.json(
+      { ok: false, error: "اسم المستخدم مستخدم بالفعل لموظف نشط" },
+      { status: 400 }
+    );
   }
 
   try {
     const result = await db.$transaction(async (tx) => {
-      // التحقق من وجود مستخدم معطلون بنفس اسم المستخدم
-      // إذا وُجد، نعيد تسمية اسم المستخدم القديم لتحرير الاسم الأصلي
-      // ( Prisma @unique constraint يمنع تكرار اسم المستخدم حتى لو كان معطّلاً)
-      const inactiveUser = await tx.user.findFirst({
-        where: { username: { equals: username.trim() }, isActive: false },
+      // 2. البحث عن أي مستخدمين معطلين (محذوفين) يحملون نفس الاسم وتحرير الاسم فوراً
+      const inactiveUsers = await tx.user.findMany({
+        where: {
+          username: { equals: cleanUsername, mode: "insensitive" },
+          isActive: false,
+        },
       });
-      if (inactiveUser) {
-        // إعادة تسمية المستخدم المعطّل بإضافة لاحقة فريدة
-        const suffix = `_deleted_${Date.now()}`;
+
+      for (const oldUser of inactiveUsers) {
         await tx.user.update({
-          where: { id: inactiveUser.id },
-          data: { username: `${inactiveUser.username}${suffix}` },
+          where: { id: oldUser.id },
+          data: { username: `${cleanUsername}_del_${Date.now()}_${Math.floor(Math.random() * 1000)}` },
         });
       }
 
-      const seq = (await tx.employee.count()) + 1;
-      const employeeNumber = `EMP-${String(seq).padStart(4, "0")}`;
+      // 3. حساب رقم الموظف التالي بشكل فريد وآمن لتجنب تكرار EMP-000X
+      const latestEmp = await tx.employee.findFirst({
+        orderBy: { createdAt: "desc" },
+        select: { employeeNumber: true },
+      });
 
+      let nextNum = 1;
+      if (latestEmp?.employeeNumber) {
+        const match = latestEmp.employeeNumber.match(/\d+/);
+        if (match) {
+          nextNum = parseInt(match[0], 10) + 1;
+        }
+      }
+      const employeeNumber = `EMP-${String(nextNum).padStart(4, "0")}`;
+
+      // 4. إنشاء سجل الموظف
       const employee = await tx.employee.create({
         data: {
           employeeNumber,
@@ -106,9 +81,10 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // 5. إنشاء حساب المستخدم وربطه بالموظف
       const newUser = await tx.user.create({
         data: {
-          username: username.trim(),
+          username: cleanUsername,
           passwordHash: password,
           role,
           employeeId: employee.id,
@@ -120,7 +96,14 @@ export async function POST(req: NextRequest) {
       return { employee, user: newUser };
     });
 
-    await logAudit(user, "إنشاء حساب موظف", "users", `إنشاء حساب للموظف ${result.employee.fullName} (${result.employee.employeeNumber}) بدور: ${role === "manager" ? "مدير عام" : role === "accountant" ? "محاسب" : "مسؤول حجوزات"}`, "user", result.user.id);
+    await logAudit(
+      user,
+      "إنشاء حساب موظف",
+      "users",
+      `إنشاء حساب للموظف ${result.employee.fullName} (${result.employee.employeeNumber}) بدور: ${role === "manager" ? "مدير عام" : role === "accountant" ? "محاسب" : "مسؤول حجوزات"}`,
+      "user",
+      result.user.id
+    );
 
     return NextResponse.json({ ok: true });
   } catch (err) {
