@@ -1,3 +1,7 @@
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { getCurrentUser, logAudit } from "@/lib/auth";
+
 /**
  * POST /api/employees — إنشاء حساب موظف
  *
@@ -23,10 +27,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 1. التحقق من عدم وجود مستخدم "نشط" بنفس الاسم
+  // 1. التحقق من عدم وجود مستخدم "نشط" بنفس الاسم 
+  // (تم إزالة mode: insensitive لكي لا ينهار السيرفر مع SQLite)
   const activeUser = await db.user.findFirst({
     where: {
-      username: { equals: cleanUsername, mode: "insensitive" },
+      username: cleanUsername,
       isActive: true,
     },
   });
@@ -41,9 +46,10 @@ export async function POST(req: NextRequest) {
   try {
     const result = await db.$transaction(async (tx) => {
       // 2. البحث عن أي مستخدمين معطلين (محذوفين) يحملون نفس الاسم وتحرير الاسم فوراً
+      // (تم إزالة mode: insensitive هنا أيضاً)
       const inactiveUsers = await tx.user.findMany({
         where: {
-          username: { equals: cleanUsername, mode: "insensitive" },
+          username: cleanUsername,
           isActive: false,
         },
       });
