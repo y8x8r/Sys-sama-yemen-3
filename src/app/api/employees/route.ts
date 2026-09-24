@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser, logAudit } from "@/lib/auth";
@@ -28,7 +29,6 @@ export async function POST(req: NextRequest) {
   }
 
   // 1. التحقق من عدم وجود مستخدم "نشط" بنفس الاسم 
-  // (تم إزالة mode: insensitive لكي لا ينهار السيرفر مع SQLite)
   const activeUser = await db.user.findFirst({
     where: {
       username: cleanUsername,
@@ -46,7 +46,6 @@ export async function POST(req: NextRequest) {
   try {
     const result = await db.$transaction(async (tx) => {
       // 2. البحث عن أي مستخدمين معطلين (محذوفين) يحملون نفس الاسم وتحرير الاسم فوراً
-      // (تم إزالة mode: insensitive هنا أيضاً)
       const inactiveUsers = await tx.user.findMany({
         where: {
           username: cleanUsername,
@@ -111,7 +110,8 @@ export async function POST(req: NextRequest) {
       result.user.id
     );
 
-    return NextResponse.json({ ok: true });
+    // التعديل هنا: إرجاع بيانات الموظف واليوزر لكي يتم إضافتها في الجدول مباشرة
+    return NextResponse.json({ ok: true, employee: result.employee, user: result.user });
   } catch (err) {
     console.error("Create employee error:", err);
     return NextResponse.json({ ok: false, error: "create_failed", details: String(err) }, { status: 500 });
