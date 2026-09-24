@@ -2,30 +2,62 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser, logAudit, genNumber, nextSeq, checkModuleAccess } from "@/lib/auth";
 
-/** GET /api/customers — قائمة العملاء مع بحث */
+/** GET /api/customers — قائمة العملاء مع تقسيم صفحات (100 عميل لكل دفعة) */
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req);
   if (!user) return NextResponse.json({ ok: false, error: "not_authed" }, { status: 401 });
-  // المحاسب: قراءة فقط للعملاء المرتبطين بالفواتير — مسموح
-  // لكن لا يستطيع إنشاء/تعديل/حذف عملاء
 
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q") ?? "";
+  const page = parseInt(searchParams.get("page") ?? "1", 10);
+  const limit = parseInt(searchParams.get("limit") ?? "100", 10);
+  const skip = (page - 1) * limit;
 
-  const customers = await db.customer.findMany({
-    where: q
-      ? {
-          OR: [
-            { fullName: { contains: q } },
-            { customerNumber: { contains: q } },
-            { phoneNumber: { contains: q } },
-            { passportNumber: { contains: q } },
-          ],
-        }
-      : undefined,
-    orderBy: { createdAt: "desc" },
+  // شرط البحث
+  const whereCondition = q
+    ? {
+        OR: [
+          { fullName: { contains: q, mode: "insensitive" as const } },
+          { customerNumber: { contains: q, mode: "insensitive" as const } },
+          { phoneNumber: { contains: q } },
+          { passportNumber: { contains: q, mode: "insensitive" as const } },
+        ],
+      }
+    : undefined;
+
+  // جلب 100 عميل فقط مع حساب الإجمالي بالتوازي لتسريع الاستجابة
+  const [customers, total] = await Promise.all([
+    db.customer.findMany({
+      where: whereCondition,
+      orderBy: { createdAt: "desc" },
+      take: limit, // جلب 100 فقط
+      skip: skip,  // تخطي ما سبق عرضه
+    }),
+    db.customer.count({
+      where: whereCondition,
+    }),
+  ]);
+
+  return NextResponse.json({
+    ok: true,
+    total,
+    page,
+    hasMore: skip + customers.length < total,
+    customers: customers.map((c) => ({
+      id: c.id,
+      customerNumber: c.customerNumber,
+      fullName: c.fullName,
+      phoneNumber: c.phoneNumber,
+      passportNumber: c.passportNumber,
+      nationalId: c.nationalId,
+      cardNumber: c.cardNumber,
+      joinedOn: c.joinedOn.toISOString().split("T")[0],
+      referralSource: c.referralSource,
+      isActive: c.isActive,
+      createdAt: c.createdAt.toISOString(),
+    })),
   });
-
+}
   return NextResponse.json({
     ok: true,
     customers: customers.map((c) => ({
