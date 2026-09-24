@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAppStore } from "@/lib/store";
 import { tr } from "@/lib/translations";
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,13 +55,18 @@ import {
 
 export function CustomersPage() {
   const lang = useAppStore((s) => s.lang);
-  const customers = useAppStore((s) => s.customers);
   const services = useAppStore((s) => s.services);
-  const addCustomer = useAppStore((s) => s.addCustomer);
-  const updateCustomer = useAppStore((s) => s.updateCustomer);
-  const deleteCustomer = useAppStore((s) => s.deleteCustomer);
 
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  
+  // تقسيم الدفعات (100 عميل)
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -80,17 +85,41 @@ export function CustomersPage() {
   const [customFromDate, setCustomFromDate] = useState("");
   const [customToDate, setCustomToDate] = useState("");
 
-  const list = useMemo(() => {
-    if (!search.trim()) return customers;
-    const q = search.toLowerCase();
-    return customers.filter(
-      (c) =>
-        c.fullName.toLowerCase().includes(q) ||
-        c.customerNumber.toLowerCase().includes(q) ||
-        c.phoneNumber.toLowerCase().includes(q) ||
-        (c.passportNumber ?? "").toLowerCase().includes(q)
-    );
-  }, [customers, search]);
+  // جلب العملاء بدفعات من السيرفر وقاعدة البيانات
+  const loadCustomers = async (pageNumber = 1, searchQuery = search) => {
+    try {
+      if (pageNumber === 1) setLoading(true);
+      else setLoadingMore(true);
+
+      const res = await fetch(`/api/customers?page=${pageNumber}&limit=100&q=${encodeURIComponent(searchQuery)}`);
+      const data = await res.json();
+
+      if (data.ok && Array.isArray(data.customers)) {
+        if (pageNumber === 1) {
+          setCustomers(data.customers);
+        } else {
+          setCustomers((prev) => [...prev, ...data.customers]);
+        }
+        setTotalCount(data.total ?? data.customers.length);
+        setHasMore(Boolean(data.hasMore));
+        setPage(pageNumber);
+      }
+    } catch (err) {
+      console.error("فشل جلب العملاء:", err);
+      toast.error(lang === "ar" ? "فشل جلب بيانات العملاء" : "Failed to load customers");
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  // تحميل أولي عند فتح الصفحة والبحث اللحظي مع تأخير بسيط
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadCustomers(1, search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const openCreate = () => {
     setForm({ fullName: "", phoneNumber: "", passportNumber: "", nationalId: "", cardNumber: "", referralSource: "" });
@@ -100,7 +129,7 @@ export function CustomersPage() {
     setOpen(true);
   };
 
-  const openEdit = (c: typeof customers[0]) => {
+  const openEdit = (c: any) => {
     setForm({
       fullName: c.fullName,
       phoneNumber: c.phoneNumber,
@@ -125,14 +154,33 @@ export function CustomersPage() {
     setSaving(true);
     try {
       if (editingId) {
-        await updateCustomer(editingId, form);
-        toast.success(lang === "ar" ? "تم تحديث العميل" : "Customer updated");
-      } else {
-        const result = await addCustomer(form);
-        if (result) {
-          toast.success(lang === "ar" ? "تم حفظ العميل" : "Customer saved");
+        const res = await fetch(`/api/customers/${editingId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          setCustomers((prev) => prev.map((c) => (c.id === editingId ? data.customer : c)));
+          toast.success(lang === "ar" ? "تم تحديث العميل" : "Customer updated");
         } else {
-          toast.error(lang === "ar" ? "فشل حفظ العميل" : "Failed to save customer");
+          toast.error(lang === "ar" ? "فشل التحديث" : "Failed to update");
+          setSaving(false);
+          return;
+        }
+      } else {
+        const res = await fetch("/api/customers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+        const data = await res.json();
+        if (data.ok && data.customer) {
+          setCustomers((prev) => [data.customer, ...prev]);
+          setTotalCount((prev) => prev + 1);
+          toast.success(lang === "ar" ? "تم حفظ العميل في قاعدة البيانات" : "Customer saved");
+        } else {
+          toast.error(data.error || (lang === "ar" ? "فشل حفظ العميل" : "Failed to save"));
           setSaving(false);
           return;
         }
@@ -142,17 +190,25 @@ export function CustomersPage() {
       setEditingId(null);
       setFormDirty(false);
     } catch (err) {
-      toast.error(lang === "ar" ? "حدث خطأ" : "An error occurred");
+      toast.error(lang === "ar" ? "حدث خطأ في الاتصال" : "Network error");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const confirmDelete = async () => {
     if (!deleteId) return;
     try {
-      await deleteCustomer(deleteId);
-      setDeleteId(null);
-      toast.success(lang === "ar" ? "تم حذف العميل" : "Customer deleted");
+      const res = await fetch(`/api/customers/${deleteId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.ok) {
+        setCustomers((prev) => prev.filter((c) => c.id !== deleteId));
+        setTotalCount((prev) => Math.max(0, prev - 1));
+        setDeleteId(null);
+        toast.success(lang === "ar" ? "تم حذف العميل" : "Customer deleted");
+      } else {
+        toast.error(data.error || (lang === "ar" ? "فشل الحذف" : "Failed to delete"));
+      }
     } catch (err) {
       toast.error(lang === "ar" ? "فشل الحذف" : "Failed to delete");
     }
@@ -175,7 +231,6 @@ export function CustomersPage() {
     toast.success(lang === "ar" ? "تم فتح تقرير PDF" : "PDF report opened");
   };
 
-  
   const exportCustomExcel = (type: string) => {
     if (!customFromDate || !customToDate) {
       toast.error(lang === "ar" ? "يرجى تحديد التاريخ من وإلى" : "Please select from and to dates");
@@ -203,14 +258,14 @@ export function CustomersPage() {
     toast.success(lang === "ar" ? "تم فتح تقرير PDF" : "PDF report opened");
   };
 
-const handleDialogChange = (open: boolean) => {
-    if (!open && formDirty) {
+  const handleDialogChange = (isOpen: boolean) => {
+    if (!isOpen && formDirty) {
       if (!window.confirm(lang === "ar" ? "لديك تغييرات غير محفوظة. هل تريد المغادرة؟" : "You have unsaved changes. Leave anyway?")) {
         return;
       }
     }
-    setOpen(open);
-    if (!open) {
+    setOpen(isOpen);
+    if (!isOpen) {
       setForm({ fullName: "", phoneNumber: "", passportNumber: "", nationalId: "", cardNumber: "", referralSource: "" });
       setEditingId(null);
       setFormDirty(false);
@@ -223,11 +278,12 @@ const handleDialogChange = (open: boolean) => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">{tr(lang, "nav_customers")}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {lang === "ar" ? `إجمالي العملاء: ${customers.length}` : `Total customers: ${customers.length}`}
+            {lang === "ar" 
+              ? `إجمالي العملاء: ${totalCount} (المعروض: ${customers.length})` 
+              : `Total customers: ${totalCount} (Showing: ${customers.length})`}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* تصدير Excel أسبوعي/شهري */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="bg-background gap-2">
@@ -255,7 +311,7 @@ const handleDialogChange = (open: boolean) => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          {/* تصدير PDF أسبوعي/شهري/سنوي */}
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="bg-background gap-2">
@@ -283,6 +339,7 @@ const handleDialogChange = (open: boolean) => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
           <Button
             className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 gap-2 shadow-sm"
             onClick={openCreate}
@@ -323,7 +380,16 @@ const handleDialogChange = (open: boolean) => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {list.length === 0 ? (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-12">
+                      <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                        <Loader2 className="w-6 h-6 animate-spin" />
+                        <p className="text-sm">{lang === "ar" ? "جاري تحميل العملاء..." : "Loading customers..."}</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : customers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-12">
                       <div className="flex flex-col items-center gap-3 text-muted-foreground">
@@ -335,14 +401,14 @@ const handleDialogChange = (open: boolean) => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  list.map((c) => {
+                  customers.map((c) => {
                     const custServices = services.filter((s) => s.customerId === c.id);
                     return (
                       <TableRow key={c.id} className="hover:bg-accent/30">
                         <TableCell>
                           <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-pastel-lilac to-pastel-lilac flex items-center justify-center text-pastel-lilac font-bold text-sm">
-                              {c.fullName.charAt(0)}
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-950 dark:to-purple-900 flex items-center justify-center text-purple-700 dark:text-purple-300 font-bold text-sm">
+                              {c.fullName?.charAt(0) || "U"}
                             </div>
                             <div>
                               <div className="font-medium text-foreground text-sm">{c.fullName}</div>
@@ -357,7 +423,7 @@ const handleDialogChange = (open: boolean) => {
                         <TableCell className="text-sm text-muted-foreground num">{c.joinedOn}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{c.referralSource ?? "—"}</TableCell>
                         <TableCell>
-                          <Badge variant="secondary" className={c.isActive ? "bg-pastel-mint text-pastel-mint" : "bg-muted text-muted-foreground"}>
+                          <Badge variant="secondary" className={c.isActive ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : "bg-muted text-muted-foreground"}>
                             {c.isActive ? tr(lang, "active") : tr(lang, "inactive")}
                           </Badge>
                         </TableCell>
@@ -378,10 +444,30 @@ const handleDialogChange = (open: boolean) => {
               </TableBody>
             </Table>
           </div>
+
+          {/* زر تحميل الـ 100 عميل التالية */}
+          {hasMore && (
+            <div className="flex justify-center p-4 border-t border-border">
+              <Button
+                variant="outline"
+                onClick={() => loadCustomers(page + 1)}
+                disabled={loadingMore}
+                className="gap-2"
+              >
+                {loadingMore ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>{lang === "ar" ? "جاري تحميل الدفعة التالية..." : "Loading next batch..."}</span>
+                  </>
+                ) : (
+                  <span>{lang === "ar" ? "تحميل المزيد (100 عميل)" : "Load more (100 customers)"}</span>
+                )}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Create/Edit dialog — بدون حقل رقم الهوية */}
       <Dialog open={open} onOpenChange={handleDialogChange}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
@@ -392,25 +478,25 @@ const handleDialogChange = (open: boolean) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
             <div className="space-y-1.5 sm:col-span-2">
               <Label>{tr(lang, "f_customer_name")} *</Label>
-              <Input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="bg-background" />
+              <Input value={form.fullName} onChange={(e) => { setForm({ ...form, fullName: e.target.value }); setFormDirty(true); }} className="bg-background" />
               {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
             </div>
             <div className="space-y-1.5">
               <Label>{tr(lang, "f_phone")} *</Label>
-              <Input value={form.phoneNumber} onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })} className="bg-background" />
+              <Input value={form.phoneNumber} onChange={(e) => { setForm({ ...form, phoneNumber: e.target.value }); setFormDirty(true); }} className="bg-background" />
               {errors.phoneNumber && <p className="text-xs text-destructive">{errors.phoneNumber}</p>}
             </div>
             <div className="space-y-1.5">
               <Label>{tr(lang, "passport_number")}</Label>
-              <Input value={form.passportNumber} onChange={(e) => setForm({ ...form, passportNumber: e.target.value })} className="bg-background" />
+              <Input value={form.passportNumber} onChange={(e) => { setForm({ ...form, passportNumber: e.target.value }); setFormDirty(true); }} className="bg-background" />
             </div>
             <div className="space-y-1.5">
               <Label>{tr(lang, "f_card_number")}</Label>
-              <Input value={form.cardNumber} onChange={(e) => setForm({ ...form, cardNumber: e.target.value })} className="bg-background" />
+              <Input value={form.cardNumber} onChange={(e) => { setForm({ ...form, cardNumber: e.target.value }); setFormDirty(true); }} className="bg-background" />
             </div>
             <div className="space-y-1.5">
               <Label>{tr(lang, "customer_referral")}</Label>
-              <Input value={form.referralSource} onChange={(e) => setForm({ ...form, referralSource: e.target.value })} className="bg-background" placeholder={lang === "ar" ? "توصية، إعلان..." : "Referral, ad..."} />
+              <Input value={form.referralSource} onChange={(e) => { setForm({ ...form, referralSource: e.target.value }); setFormDirty(true); }} className="bg-background" placeholder={lang === "ar" ? "توصية، إعلان..." : "Referral, ad..."} />
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-2">
@@ -423,7 +509,6 @@ const handleDialogChange = (open: boolean) => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirm */}
       <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -439,7 +524,6 @@ const handleDialogChange = (open: boolean) => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* تصدير حسب التاريخ — نافذة منبثقة */}
       <Dialog open={customDateOpen} onOpenChange={setCustomDateOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -470,7 +554,6 @@ const handleDialogChange = (open: boolean) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }
